@@ -14,9 +14,9 @@ class dataloader(tf.keras.utils.Sequence):
         self.data_path = configs['data_path']
         # self.data_path = os.path.join(os.getcwd(), 'data', '2022')
         self.get_idx(type, task_list)
-
-    def __len__(self):
-        return math.ceil(len(self.total_list) / self.batch_size)
+    #
+    # def __len__(self):
+    #     return math.ceil(len(self.total_list) / self.batch_size)
 
     def __getitem__(self, idx):
         batch_x = self.img_path_list[idx * self.batch_size:(idx + 1) *

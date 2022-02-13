@@ -18,6 +18,8 @@ def video_to_audio(video_path, save_path):
 def audio_crop(video_path, audio_path, save_path):
     video_list = os.listdir(video_path)
     for i, video in enumerate(video_list):
+        if video == '8-30-1280x720.mp4':
+            print()
         print('\r', f"[INFO] ({i + 1}/{len(video_list)}) cropping wav file {video}", end='')
         save_dir = os.path.join(save_path, video.split(".")[0])
         if not os.path.isdir(save_dir):
@@ -27,10 +29,11 @@ def audio_crop(video_path, audio_path, save_path):
         hz = cap.get(cv2.CAP_PROP_FPS)
         fs, data = wavfile.read(os.path.join(audio_path, f'{video.split(".")[0]}.wav'))
         idx_list = [(int((i+1)*(len(data)/frame_num)-44100/30), int((i+1)*(len(data)/frame_num))) for i in range(frame_num)]
-        for i, idx in enumerate(idx_list):
+        for j, idx in enumerate(idx_list):
             st_idx, end_idx = idx
             audio_chunk = data[st_idx:end_idx,:]
-            wavfile.write(os.path.join(save_dir, f"{i}.wav"), 44100, audio_chunk.astype(np.int16))
+            wavfile.write(os.path.join(save_dir, f"{j}.wav"), 44100, audio_chunk.astype(np.int16))
+
 
 if __name__ == '__main__':
     data_path = configs['data_path']
