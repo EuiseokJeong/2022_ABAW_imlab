@@ -9,14 +9,14 @@ from scipy.io import wavfile
 import gzip
 import pickle
 class dataloader(tf.keras.utils.Sequence):
-    def __init__(self, type, batch_size, video_seq_len, audio_seq_len, task_list = ['VA','EXPR','AU'], idx_path=None, save_idx=True):
+    def __init__(self, type, batch_size, video_seq_len, audio_seq_len, task_list = ['VA','EXPR','AU']):
         # task: 'VA', 'EXPR', 'AU', 'MTL
         self.batch_size = batch_size
         self.get_dict()
         self.video_seq_len = video_seq_len
         self.audio_seq_len = audio_seq_len
         self.data_path = configs['data_path']
-        self.get_idx(type, task_list, idx_path, save_idx)
+        self.get_idx(type, task_list)
 
 
     def __len__(self):
@@ -29,6 +29,7 @@ class dataloader(tf.keras.utils.Sequence):
         batch_au_list = self.au_list[idx * self.au_batch_size:(idx + 1) * self.au_batch_size]
         return self.get_data(batch_va_list), self.get_data(batch_expr_list), self.get_data(batch_au_list)
     def get_data(self,data_list):
+        # 여기서 path를 mapping하고 return하기
         vid_list = np.array([x[0] for x in data_list])
         idx_list = np.array([x[1] for x in data_list])
         image_np = np.array([np.array(imread_collection(x[2])) for x in data_list])
@@ -48,12 +49,18 @@ class dataloader(tf.keras.utils.Sequence):
         self.au_batch_size = int(len(self.idx_dict['AU']) / self.max_iter)
 
 
-    def get_idx(self, type, task_list, idx_path, save_idx):
-        if idx_path is not None:
+    def get_idx(self, type, task_list):
+        idx_dir_path = os.path.join(self.data_path, 'idx')
+        idx_path = os.path.join(idx_dir_path, f'idx_{type}_vid({self.video_seq_len})_aud({self.audio_seq_len}).pickle')
+
+        if os.path.isfile(idx_path):
+            print(f"[INFO] Load existing idx pickle file in {idx_path}")
             # load and uncompress.
-            with gzip.open('testPickleFile.pickle', 'rb') as f:
+            with gzip.open(idx_path, 'rb') as f:
                 self.idx_dict = pickle.load(f)
         else:
+            if not os.path.isdir(idx_dir_path):
+                os.mkdir(idx_dir_path)
             self.idx_dict = {}
             for task in task_list:
                 self.idx_dict[task] = []
@@ -61,27 +68,25 @@ class dataloader(tf.keras.utils.Sequence):
                 st_time = time.time()
                 for k, video_name in enumerate(task_vid_list):
                     tmp_label = open(os.path.join(self.data_path, 'annotation', f'{self.task_dict[task]}', f'{self.type_dict[type]}',video_name), 'r', encoding='UTF8').read().splitlines()[1:]
-                    print('\r', f"[INFO] Making index list task: {task} ({k+1}/{len(task_vid_list)} {time.time() - st_time:.1f})", end = '')
+
                     video_name = video_name.replace('.txt', '')
                     audio_name = video_name.replace('.txt', '').replace('_left', '').replace('_right', '')
                     for i, label in enumerate(tmp_label):
+                        print('\r',f"[INFO] Making index list task: {task} ({k + 1}/{len(task_vid_list)} {time.time() - st_time:.1f}sec)",end='')
                         img_path = [os.path.join(self.data_path, 'cropped_aligned', video_name,  f"{n+1:0>5}.jpg") for n in range(i-int(self.video_seq_len*30), i, 1)]
                         audio_path = [os.path.join(self.data_path, 'cropped_audio', audio_name, f"{n+1}.wav") for n in range(i - int(self.audio_seq_len*30), i, 1)]
+                        # 여기는 그냥 인덱스만 가져가기
                         if '-1' in label or '-5' in label or not self.check_path(img_path) or not self.check_path(audio_path):
                             continue
                         self.idx_dict[task].append((video_name, i, img_path, audio_path, self.convert_label(label, task), task))
-
-                    if save_idx:
-                        idx_path = os.path.join(self.data_path, 'idx')
-                        if not os.path.isdir(idx_path):
-                            os.mkdir(idx_path)
-                        with gzip.open(os.path.join(idx_path,  f'idx_{type}_vid({self.video_seq_len})_aud({self.audio_seq_len}).pickle'), 'wb') as f:
-                            pickle.dump(self.idx_dict, f)
-
+                print()
+            with gzip.open(idx_path, 'wb') as f:
+                pickle.dump(self.idx_dict, f)
         self.va_list = self.idx_dict['VA']
         self.expr_list = self.idx_dict['EXPR']
         self.au_list = self.idx_dict['AU']
     def check_path(self, path_list):
+        # 여기서도 path 따로 만들어서 하
         for path in path_list:
             if not os.path.isfile(path):
                 return False
