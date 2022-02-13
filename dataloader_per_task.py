@@ -17,10 +17,10 @@ class dataloader(tf.keras.utils.Sequence):
         self.audio_seq_len = audio_seq_len
         self.data_path = configs['data_path']
         self.get_idx(type, task_list)
+        self.get_batch_size()
 
 
     def __len__(self):
-
         return math.ceil(self.max_len / self.batch_size)
 
     def __getitem__(self, idx):
@@ -28,15 +28,18 @@ class dataloader(tf.keras.utils.Sequence):
         batch_expr_list = self.expr_list[idx * self.expr_batch_size:(idx + 1) * self.expr_batch_size]
         batch_au_list = self.au_list[idx * self.au_batch_size:(idx + 1) * self.au_batch_size]
         return self.get_data(batch_va_list), self.get_data(batch_expr_list), self.get_data(batch_au_list)
-    def get_data(self,data_list):
-        # 여기서 path를 mapping하고 return하기
-        vid_list = np.array([x[0] for x in data_list])
-        idx_list = np.array([x[1] for x in data_list])
-        image_np = np.array([np.array(imread_collection(x[2])) for x in data_list])
-        audio_np = np.array([np.array([wavfile.read(path)[1] for path in x[3]]) for x in data_list])
+    def get_data(self, data_list):
+        vid_name_list = [x[0] for x in data_list]
+        idx_list = [x[1] for x in data_list]
+        image_idx_list = [x[2] for x in data_list]
+        audio_idx_list = [x[3] for x in data_list]
+        task = data_list[0][5]
         label_np = np.array([x[4] for x in data_list])
-
-        return vid_list, idx_list, image_np, audio_np, label_np, list[0][5]
+        image_path_list = [[os.path.join(self.data_path, 'cropped_aligned', vid_name, f"{idx:0>5}.jpg") for idx in idx_list] for idx_list, vid_name in zip(image_idx_list, vid_name_list)]
+        audio_path_list = [[os.path.join(self.data_path, 'cropped_audio', vid_name, f"{idx}.wav") for idx in idx_list] for idx_list, vid_name in zip(audio_idx_list, vid_name_list)]
+        image_np = np.array([np.array(imread_collection(path_list)) for path_list in image_path_list])
+        audio_np = np.array([np.array([wavfile.read(path)[1] for path in path_list]) for path_list in audio_path_list])
+        return vid_name_list, idx_list, image_np, audio_np, label_np, task
 
     def get_batch_size(self):
         len_list = []
@@ -56,8 +59,10 @@ class dataloader(tf.keras.utils.Sequence):
         if os.path.isfile(idx_path):
             print(f"[INFO] Load existing idx pickle file in {idx_path}")
             # load and uncompress.
+            st_time = time.time()
             with gzip.open(idx_path, 'rb') as f:
                 self.idx_dict = pickle.load(f)
+            print(f"load pickle file: {time.time() - st_time}")
         else:
             if not os.path.isdir(idx_dir_path):
                 os.mkdir(idx_dir_path)
@@ -68,42 +73,45 @@ class dataloader(tf.keras.utils.Sequence):
                 st_time = time.time()
                 for k, video_name in enumerate(task_vid_list):
                     tmp_label = open(os.path.join(self.data_path, 'annotation', f'{self.task_dict[task]}', f'{self.type_dict[type]}',video_name), 'r', encoding='UTF8').read().splitlines()[1:]
-
                     video_name = video_name.replace('.txt', '')
                     audio_name = video_name.replace('.txt', '').replace('_left', '').replace('_right', '')
                     for i, label in enumerate(tmp_label):
                         print('\r',f"[INFO] Making index list task: {task} ({k + 1}/{len(task_vid_list)} {time.time() - st_time:.1f}sec)",end='')
-                        img_path = [os.path.join(self.data_path, 'cropped_aligned', video_name,  f"{n+1:0>5}.jpg") for n in range(i-int(self.video_seq_len*30), i, 1)]
-                        audio_path = [os.path.join(self.data_path, 'cropped_audio', audio_name, f"{n+1}.wav") for n in range(i - int(self.audio_seq_len*30), i, 1)]
-                        # 여기는 그냥 인덱스만 가져가기
-                        if '-1' in label or '-5' in label or not self.check_path(img_path) or not self.check_path(audio_path):
+                        img_idx = [n+1 for n in range(i - int(self.video_seq_len * 30), i, 1)]
+                        audio_idx = [n+1 for n in range(i - int(self.audio_seq_len * 30), i, 1)]
+                        if '-1' in label or '-5' in label or not self.check_path(img_idx, 'image', video_name) or not self.check_path(audio_idx, 'audio', audio_name):
                             continue
-                        self.idx_dict[task].append((video_name, i, img_path, audio_path, self.convert_label(label, task), task))
-                print()
+                        self.idx_dict[task].append((video_name, i, img_idx, audio_idx, self.convert_label(label, task), task))
             with gzip.open(idx_path, 'wb') as f:
                 pickle.dump(self.idx_dict, f)
         self.va_list = self.idx_dict['VA']
         self.expr_list = self.idx_dict['EXPR']
         self.au_list = self.idx_dict['AU']
-    def check_path(self, path_list):
-        # 여기서도 path 따로 만들어서 하
-        for path in path_list:
-            if not os.path.isfile(path):
-                return False
+    def check_path(self, idx_list, stream, name):
+        if stream == 'image':
+            for idx in idx_list:
+                if not os.path.isfile(os.path.join(self.data_path, 'cropped_aligned', name,  f"{idx:0>5}.jpg")):
+                    return False
+        elif stream == 'audio':
+            for idx in idx_list:
+                if not os.path.isfile(os.path.join(self.data_path, 'cropped_audio', name, f"{idx}.wav")):
+                    return False
+        else:
+            raise ValueError(f"stream in self.check_path function {stream} is not valid!")
         return True
 
     def convert_label(self, label, task):
         if task == 'VA':
-            return np.array(label.split(','))
+            return np.array(label.split(',')).astype(np.float32)
         elif task == 'EXPR':
             ont_hot_np = np.zeros((8))
             ont_hot_np[int(label)] = 1
             return ont_hot_np
         elif task == 'AU':
-            return np.array(label.split(','))
+            return np.array(label.split(',')).astype(np.int8)
         else:
             raise ValueError(f"Task {task} is not valid!")
-        return converted_label
+        # return converted_label
 
     def get_dict(self):
         self.type_dict = {

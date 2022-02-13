@@ -1,4 +1,10 @@
-data/
+*.jpg
+*.png
+*.avi
+*.mp4
+*.txt
+*.wav
+*.pickle
 
 
 # Byte-compiled / optimized / DLL files
