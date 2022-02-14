@@ -6,6 +6,7 @@
 *.wav
 *.pickle
 *npy
+*hdf5
 ImaginarySoundscape/
 data/2022/tmp
 
