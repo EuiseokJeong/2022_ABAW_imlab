@@ -5,7 +5,9 @@
 *.txt
 *.wav
 *.pickle
-
+*npy
+ImaginarySoundscape/
+data/2022/tmp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

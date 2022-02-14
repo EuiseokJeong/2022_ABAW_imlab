@@ -7,6 +7,7 @@ import time
 from config import configs
 from scipy.io import wavfile
 import gzip
+import librosa
 import pickle
 class dataloader(tf.keras.utils.Sequence):
     def __init__(self, type, batch_size, video_seq_len, audio_seq_len, task_list = ['VA','EXPR','AU']):
@@ -29,16 +30,25 @@ class dataloader(tf.keras.utils.Sequence):
         batch_au_list = self.au_list[idx * self.au_batch_size:(idx + 1) * self.au_batch_size]
         return self.get_data(batch_va_list), self.get_data(batch_expr_list), self.get_data(batch_au_list)
     def get_data(self, data_list):
-        vid_name_list = [x[0] for x in data_list]
-        idx_list = [x[1] for x in data_list]
-        image_idx_list = [x[2] for x in data_list]
-        audio_idx_list = [x[3] for x in data_list]
-        task = data_list[0][5]
-        label_np = np.array([x[4] for x in data_list])
-        image_path_list = [[os.path.join(self.data_path, 'cropped_aligned', vid_name, f"{idx:0>5}.jpg") for idx in idx_list] for idx_list, vid_name in zip(image_idx_list, vid_name_list)]
-        audio_path_list = [[os.path.join(self.data_path, 'cropped_audio', vid_name, f"{idx}.wav") for idx in idx_list] for idx_list, vid_name in zip(audio_idx_list, vid_name_list)]
-        image_np = np.array([np.array(imread_collection(path_list)) for path_list in image_path_list])
-        audio_np = np.array([np.array([wavfile.read(path)[1] for path in path_list]) for path_list in audio_path_list])
+        try:
+            vid_name_list = [x[0] for x in data_list]
+            idx_list = [x[1] for x in data_list]
+            image_idx_list = [x[2] for x in data_list]
+            audio_idx_list = [x[3] for x in data_list]
+            task = data_list[0][5]
+            label_np = np.array([x[4] for x in data_list])
+            image_path_list = [[os.path.join(self.data_path, 'cropped_aligned', vid_name, f"{idx:0>5}.jpg") for idx in idx_list] for idx_list, vid_name in zip(image_idx_list, vid_name_list)]
+            audio_path_list = [[os.path.join(self.data_path, 'cropped_audio', vid_name, f"{idx}.wav") for idx in idx_list] for idx_list, vid_name in zip(audio_idx_list, vid_name_list)]
+            image_np = np.array([np.array(imread_collection(path_list)) for path_list in image_path_list])
+            # st_time = time.time()
+            audio_np = np.array([np.array([wavfile.read(path)[1] for path in path_list]) for path_list in audio_path_list])
+            # audio_np = np.array([np.array([librosa.resample(wavfile.read(path)[1], orig_sr=44100, target_sr=22050) for path in path_list]) for path_list in audio_path_list])
+            # print(time.time()-st_time)
+            # st_time = time.time()
+            # audio_np = np.array([np.array([librosa.load(path,sr=22100)[0] for path in path_list]) for path_list in audio_path_list])
+            # print(time.time()-st_time)
+        except:
+            print()
         return vid_name_list, idx_list, image_np, audio_np, label_np, task
 
     def get_batch_size(self):
