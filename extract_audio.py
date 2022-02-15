@@ -10,6 +10,7 @@ import soundfile as sf
 import time
 import tensorflow as tf
 from tensorflow.keras.models import load_model
+from utils import check_and_limit_gpu
 
 def video_to_audio(video_path, save_path):
     video_list = glob(os.path.join(video_path, '*'))
@@ -22,35 +23,50 @@ def video_to_audio(video_path, save_path):
 
 def audio_crop(video_path, audio_path, save_path, sec = 10, sample_rate = 22050):
     video_list = os.listdir(video_path)
+    video_list = [x for x in video_list if 'mp4' in x.split('.') or 'avi' in x.split('.')]
     for i, video in enumerate(video_list):
         print('\r', f"[INFO] ({i + 1}/{len(video_list)}) cropping wav file {video}", end='')
         save_dir = os.path.join(save_path, video.split(".")[0])
+        if os.path.isdir(save_dir):
+            continue
         if not os.path.isdir(save_dir):
             os.mkdir(save_dir)
         cap = cv2.VideoCapture(os.path.join(video_path, video))
         frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         data, sr = librosa.load(os.path.join(audio_path, f'{video.split(".")[0]}.wav'), sr = 22050)
+        if len(data) < sec*sample_rate:
+            print(f"shorter than 10 sec: {video}")
+            continue
         audio_per_frame = int(len(data) / frame_num)
         idx_list = [(i, audio_per_frame*i-sample_rate*sec, audio_per_frame*i) for i
                     in range(frame_num) if audio_per_frame*i-sample_rate*sec >=0]
         for j, idx in enumerate(idx_list):
-            print('\r', f"[INFO] ({i + 1}/{len(video_list)}) cropping wav file {video} ({j/len(idx_list)*100:.1f}%)", end='')
-            image_idx, st_idx, end_idx = idx
-            audio_chunk = data[st_idx:end_idx]
-            if len(audio_chunk) != sec*sample_rate:
-                print(f'{os.path.join(save_dir, f"{image_idx}.wav")}')
-
-            sf.write(os.path.join(save_dir, f"{image_idx}.wav"), audio_chunk, samplerate = sample_rate)
+            try:
+                image_idx, st_idx, end_idx = idx
+                wav_path = os.path.join(save_dir, f"{image_idx}.wav")
+                print('\r', f"[INFO] ({i + 1}/{len(video_list)}) cropping wav file {video} ({j / len(idx_list) * 100:.1f}%)", end='')
+                if os.path.isfile(wav_path):
+                    continue
+                audio_chunk = data[st_idx:end_idx]
+                if len(audio_chunk) != sec*sample_rate:
+                    print(f'{os.path.join(save_dir, f"{image_idx}.wav")}')
+                sf.write(wav_path, audio_chunk, samplerate = sample_rate)
+            except:
+                print(video, idx, wav_path)
 def extract_audio_feature(cropped_audio_path, save_path):
     if not os.path.isdir(save_path):
         os.mkdir(save_path)
     soundnet = load_model(os.path.join('/home/euiseokjeong/Desktop/IMLAB/ABAW/', 'models', 'soundnet.hdf5'))
     video_list = os.listdir(cropped_audio_path)
     for i, video_name in enumerate(video_list):
+        file_path_list = glob(os.path.join(cropped_audio_path, video_name, '*'))
+        if len(file_path_list) == 0:
+            print(video_name)
+            continue
         save_video_path = os.path.join(save_path, video_name)
         if not os.path.isdir(save_video_path):
             os.mkdir(save_video_path)
-        file_path_list = glob(os.path.join(cropped_audio_path, video_name, '*'))
+
         for j, file_path in enumerate(file_path_list):
             print('\r',f"[INFO] ({i + 1}/{len(video_list)}) Extracting features from audio file {video_name} ({j / len(file_path_list) * 100:.1f}%)",end='')
             file_name = file_path.split('/')[-1].replace('.wav', '')
@@ -61,6 +77,7 @@ def extract_audio_feature(cropped_audio_path, save_path):
             feature = get_sound_features(soundnet, file_path)
 
             np.save(os.path.join(save_path, video_name, f"{file_name}.npy"), feature)
+        print()
 
 def get_sound_features(model, filepath):
     x, sr = sf.read(filepath)
@@ -85,6 +102,7 @@ def get_sound_features(model, filepath):
 
 
 if __name__ == '__main__':
+    check_and_limit_gpu(1024*4)
     data_path = configs['data_path']
     print(data_path)
     video_path = os.path.join(data_path, 'video')
