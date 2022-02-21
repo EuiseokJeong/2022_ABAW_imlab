@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Dense, BatchNormalization, Dropout, LSTM, Concatenate, Lambda
+from tensorflow.keras.layers import Dense, BatchNormalization, Dropout, LSTM, Concatenate, Lambda, LeakyReLU
 import numpy as np
 def get_model(configs):
     FE_layers = configs['feature_extractor_layers']
@@ -10,12 +10,15 @@ def get_model(configs):
     class feature_extractor(tf.keras.Model):
         def __init__(self):
             super(feature_extractor, self).__init__()
-            self.lstm_1 = LSTM(256, activation='relu', dropout=dropout_rate)
-            self.dense_1 = Dense(1024, activation='relu')
+            self.lstm_1 = LSTM(512, activation=LeakyReLU(alpha=0.3), dropout=dropout_rate)
+            self.dense_1 = Dense(1024, activation=LeakyReLU(alpha=0.3))
+            # self.dense_1 = Dense(1024, activation='relu')
             self.bn_1 = BatchNormalization()
-            self.dense_2 = Dense(512, activation='relu')
+            self.dense_2 = Dense(512, activation=LeakyReLU(alpha=0.3))
+            # self.dense_2 = Dense(512, activation='relu')
             self.bn_2 = BatchNormalization()
-            self.dense_3 = Dense(256, activation='relu')
+            self.dense_3 = Dense(256, activation=LeakyReLU(alpha=0.3))
+            # self.dense_3 = Dense(256, activation='relu')
             self.bn_3 = BatchNormalization()
             # self.FE_layers = [(Dense(i, activation='relu'), Dropout(dropout_rate), BatchNormalization()) for i in FE_layers]
 
@@ -23,14 +26,17 @@ def get_model(configs):
             img_feature = self.lstm_1(img_feature)
             feature = Concatenate()([img_feature, audio_feature])
             h = self.dense_1(feature)
+            h = self.bn_1(h)
             h = self.dense_2(h)
+            h = self.bn_2(h)
             output = self.dense_3(h)
             return output
 
     class classifier(tf.keras.Model):
         def __init__(self, task):
             super(classifier, self).__init__()
-            self.dense_1 = Dense(128, activation='relu')
+            self.dense_1 = Dense(128, activation=LeakyReLU(alpha=0.3))
+            # self.dense_1 = Dense(128, activation='relu')
             self.bn1 = BatchNormalization()
             if task == 'VA':
                 self.dense_2 = Dense(2, activation='tanh')
@@ -38,11 +44,12 @@ def get_model(configs):
                 self.dense_2 = Dense(8, activation='softmax')
                 # self.dense_2 = Dense(8)
             elif task == 'AU':
-                self.dense_2 = Dense(12, activation='softmax')
+                self.dense_2 = Dense(12, activation='sigmoid')
             else:
                 raise ValueError(f"Task {task} is not valid!")
         def call(self, input):
             h = self.dense_1(input)
+            h = self.bn1(h)
             output = self.dense_2(h)
             return output
 

@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import os
+import time
 from sklearn.metrics import f1_score
 
 def check_and_limit_gpu(memory_limit = 1024 * 3):
@@ -77,17 +78,18 @@ def get_metric(out, labels, task):
 
 def get_loss(t_out, labels, task, alpha, beta, gamma, s_out=None, mmd=False):
     cce_loss = tf.keras.losses.CategoricalCrossentropy()
+    bce_loss = tf.keras.losses.BinaryCrossentropy()
     t_f, t_va, t_expr, t_au = t_out
     if s_out is not None:
         s_f, s_va, s_expr, s_au = s_out
         if task == 'VA':
             loss = alpha * loss_ccc(s_va, labels) + loss_ccc(s_va, t_va) + \
-                   beta * (cce_loss(t_expr, s_expr) + cce_loss(t_au, s_au))
+                   beta * (cce_loss(t_expr, s_expr) + bce_loss(t_au, s_au))
         elif task == 'EXPR':
             loss = alpha * cce_loss(s_expr, labels) + cce_loss(s_expr, t_expr) + \
-                   beta * (loss_ccc(s_va, t_va) + cce_loss(t_au, s_au))
+                   beta * (loss_ccc(s_va, t_va) + bce_loss(t_au, s_au))
         elif task == 'AU':
-            loss = alpha * cce_loss(s_au, labels) + cce_loss(s_au, t_au) + \
+            loss = alpha * bce_loss(s_au, labels) + bce_loss(s_au, t_au) + \
                    beta * (loss_ccc(s_va, t_va) + cce_loss(s_expr, t_expr))
         else:
             raise ValueError(f"Task {task} is not valid!")
@@ -99,7 +101,27 @@ def get_loss(t_out, labels, task, alpha, beta, gamma, s_out=None, mmd=False):
         elif task == 'EXPR':
             loss = cce_loss(t_expr, labels)
         elif task == 'AU':
-            loss = cce_loss(t_au, labels)
+            loss = bce_loss(t_au, labels)
         else:
             raise ValueError(f"Task {task} is not valid!")
-    return tf.cast(loss, dtype=tf.float32)
+    # print(task, loss)
+    return tf.cast(loss, dtype=tf.float64)
+def update_dict(prev_dict, add_dict):
+    for key in add_dict.keys():
+        assert len(add_dict[key]) == 1, f"length of data in key({key}) is not one! ({len(add_dict[key])})"
+        if key in prev_dict.keys():
+            prev_dict[key].append(add_dict[key][0])
+    return prev_dict
+
+def get_result_path(path):
+    result_path = os.path.join(path, 'result')
+    check_dir(result_path)
+    now = time.localtime()
+    time_path = os.path.join(result_path,
+                             f"{now.tm_year}_{now.tm_mon}_{now.tm_mday}_{now.tm_hour}_{now.tm_min}_{now.tm_sec}")
+    os.mkdir(time_path)
+    weight_path = os.path.join(time_path, 'weight')
+    src_path = os.path.join(time_path, 'src')
+    os.mkdir(weight_path)
+    os.mkdir(src_path)
+    return time_path, weight_path, src_path
