@@ -39,6 +39,7 @@ class ResidualBlock34(Model) :
                                       padding="same",
                                       groups=cardinality)
             
+            
         self.bn_2 = BatchNormalization(momentum = 0.9)
         self.relu_2 = ReLU()
         self.CA = CA(self.n_filters)
