@@ -7,6 +7,8 @@
 *.pickle
 *npy
 *hdf5
+/CAPNet
+/tmp
 ImaginarySoundscape/
 data/2022/tmp
 
