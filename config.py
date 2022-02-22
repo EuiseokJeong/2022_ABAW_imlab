@@ -4,13 +4,16 @@ configs = {
 # /home/euiseokjeong/Desktop/IMLAB/ABAW/data/2022
     'data_path': '/home/euiseokjeong/Desktop/IMLAB/ABAW/data/2022',
     'limit_gpu':1024*2,
-    'epochs':10,
+    'epochs':30,
     'batch_size':128,
     'feature_extractor_layers':[512, 256],
     'classifier_layers': [128],
     'latm_layers': [256],
     'dropout_rate':0.2,
-    'temperature':2,
-    'early_stop': 10,
-    'generation':3
+    'temperature':1.5,
+    'early_stop':5,
+    'generation':5,
+    'alpha':1.5,
+    'beta':0.5,
+    'gamma':1
 }

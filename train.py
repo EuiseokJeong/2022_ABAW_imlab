@@ -9,21 +9,21 @@ def main():
     epochs = configs['epochs']
     data_path = configs['data_path']
     limit_gpu = configs['limit_gpu']
-    result_path, weight_path, src_path = get_result_path(data_path)
+    # result_path, weight_path, src_path = get_result_path(data_path)
 
     check_and_limit_gpu(limit_gpu)
     teacher = get_model(configs, teacher=True)
     student = get_model(configs, teacher=False)
 
     trainer = Trainer(teacher, student, alpha=1.5, beta=0.5, gamma=1, batch_size=batch_size, gen=0)
-    trainer.train_teacher(epochs)
-    trainer.train_student(epochs)
+    trainer.train_teacher()
+    trainer.train_student()
 
     for gen in range(configs['generation']):
         new_teacher = trainer.student
         student = get_model(configs, teacher=False)
         trainer = Trainer(new_teacher, student, alpha=1.5, beta=0.5, gamma=1, batch_size=batch_size, gen=gen+1)
-        trainer.train_student(epochs)
+        trainer.train_student()
 
 
 

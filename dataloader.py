@@ -100,7 +100,7 @@ class dataloader(tf.keras.utils.Sequence):
         elif task == 'EXPR':
             ont_hot_np = np.zeros((8))
             ont_hot_np[int(label)] = 1
-            return ont_hot_np
+            return ont_hot_np.astype(np.float32)
         elif task == 'AU':
             return np.array(label.split(',')).astype(np.float32)
         else:

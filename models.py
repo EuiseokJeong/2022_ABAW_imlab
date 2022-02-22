@@ -1,6 +1,7 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Activation, Dense, BatchNormalization, Dropout, LSTM, Concatenate, Lambda, LeakyReLU, Softmax
+from tensorflow.keras.layers import Activation, Dense, BatchNormalization, Dropout, LSTM, Concatenate, Lambda, LeakyReLU, Softmax, Input
 import numpy as np
+from config import configs
 from tensorflow.keras.utils import get_custom_objects
 def get_model(configs, teacher):
     FE_layers = configs['feature_extractor_layers']
@@ -11,23 +12,6 @@ def get_model(configs, teacher):
         temp = 1
     else:
         temp =configs['temperature']
-
-    # class t_softmax(Activation):
-    #     def __init__(self, activation, **kwargs):
-    #         super(t_softmax, self).__init__(activation, **kwargs)
-    #         self.__name__='t_softmax'
-    # def t_softmax(x):
-    #     return np.exp(x/temp) / np.sum(np.exp(x/temp))
-    # get_custom_objects().update({'t_softmax':t_softmax(t_softmax)})
-
-    # class softmax_with_temperature():
-    #     def __init__(self, temperature):
-    #         super(softmax_with_temperature, self).__init__()
-    #         self.t = temperature
-    #         self.softmax = tf.keras.layers.Softmax()
-    #     def call(self, input):
-    #         input = input / self.t
-    #         return self.softmax(input)
 
     class classifier(tf.keras.Model):
         def __init__(self, task):
@@ -50,19 +34,10 @@ def get_model(configs, teacher):
             h = self.bn1(h)
             output = self.dense_2(h)
             return output
-        def softmax_with_temperature(self, x):
-            logits = x / configs['temperature']
-            return np.exp(logits) / np.sum(np.exp(logits))
-        # def temp_softmax(self, x):
+        # def softmax_with_temperature(self, x):
+        #     logits = x / configs['temperature']
+        #     return np.exp(logits) / np.sum(np.exp(logits))
 
-
-    # def custom_relu(x):
-    #     return K.maximum(0.0, x)
-    #
-    # model = tf.keras.models.Sequential([
-    #     tf.keras.layers.Flatten(input_shape=(128, 128)),
-    #     tf.keras.layers.Dense(512),
-    #     tf.keras.layers.Lambda(custom_relu),
     class model(tf.keras.Model):
         def __init__(self):
             super(model, self).__init__()
@@ -79,13 +54,19 @@ def get_model(configs, teacher):
             au = self.au_classifier(h)
             # au = self.softmax_temp(au)
             return h, va, expr, au
+        def build_graph(self):
+            img_input = tf.keras.Input(shape=(6, 1, 512))
+            audio_input = tf.keras.Input(shape=(1000))
+            x = [img_input, audio_input]
+            return tf.keras.Model(inputs=[img_input, audio_input], outputs=self.call(img_input, audio_input))
 
 
     class feature_extractor(tf.keras.Model):
         def __init__(self):
             super(feature_extractor, self).__init__()
-            self.lstm_1 = LSTM(512, activation='relu')
-            self.dense_1 = Dense(1024, activation=LeakyReLU(alpha=0.3))
+            self.img_reshape = tf.keras.layers.Reshape((6,512))
+            self.lstm_1 = LSTM(512, activation='relu', dtype='float32')
+            self.dense_1 = Dense(1024, activation=LeakyReLU(alpha=0.3), dtype='float32')
             # self.dense_1 = Dense(1024, activation='relu')
             self.bn_1 = BatchNormalization()
             self.dense_2 = Dense(512, activation=LeakyReLU(alpha=0.3))
@@ -97,7 +78,7 @@ def get_model(configs, teacher):
             # self.FE_layers = [(Dense(i, activation='relu'), Dropout(dropout_rate), BatchNormalization()) for i in FE_layers]
 
         def call(self, img_feature, audio_feature):
-            img_feature = tf.squeeze(img_feature)
+            img_feature = self.img_reshape(img_feature)
             img_feature = self.lstm_1(img_feature)
             feature = Concatenate()([img_feature, audio_feature])
             h = self.dense_1(feature)
@@ -109,11 +90,18 @@ def get_model(configs, teacher):
 
 
 
+
+
     # img_input = tf.keras.Input(shape=(6,1,512))
+    # img_input = tf.keras.layers.Reshape((6,512))(img_input)
+    #
     # audio_input = tf.keras.Input(shape=(512))
     #
-    # img_feature = LSTM(512, activation='relu')(tf.squeeze(img_input))
+    # img_feature = LSTM(512, activation='relu')(img_input)
+    # # img_feature = tf.squeeze(img_feature)
     # feature = Concatenate()([img_feature, audio_input])
+    #
+    # # feature extractor
     # # feature = feature_extractor()(img_input, audio_input)
     # feature = Dense(1024, activation=LeakyReLU(alpha=0.3))(feature)
     # feature = Dense(512, activation=LeakyReLU(alpha=0.3))(feature)
@@ -124,12 +112,13 @@ def get_model(configs, teacher):
     # au = classifier('AU')(feature)
     # model = tf.keras.Model(
     #     inputs = [img_input,audio_input],
-    #     outputs=[feature, va, expr, au]
+    #     outputs=[va, expr, au]
     # )
-
-
-
-
+    #
+    # tf.keras.utils.plot_model(
+    #     model, to_file='./model.png', show_shapes=False, show_dtype=False,
+    #     show_layer_names=True, rankdir='TB', expand_nested=False, dpi=96,
+    #     layer_range=None, show_layer_activations=False
+    # )
     model = model()
-    # model_sans_softmax = tf.keras.Model(inputs=model.input, outputs=model.output)
     return model

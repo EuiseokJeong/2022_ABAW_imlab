@@ -9,6 +9,7 @@ import pickle
 import gzip
 
 def check_and_limit_gpu(memory_limit = 1024 * 3):
+    print()
     ################### Limit GPU Memory ###################
     gpus = tf.config.experimental.list_physical_devices('GPU')
     print("########################################")
@@ -25,6 +26,7 @@ def check_and_limit_gpu(memory_limit = 1024 * 3):
             print(e)
     else:
         print('GPU is not available')
+    print()
 
 def CCC_score(x, y):
     x_mean = tf.math.reduce_mean(x)
@@ -90,6 +92,12 @@ def get_metric(out, labels, task):
 #         if s_out is not None:
 #
 #
+# t_out, labels, task, self.alpha, self.beta, self.gamma, s_out
+def check_weight(src_model, target_model):
+    src_weights = src_model.get_weights()
+    target_weights = target_model.get_weights()
+    for src_weight, target_weight in zip(src_weights, target_weights):
+        assert (src_weight == target_weight).all()
 
 def get_loss(t_out, labels, task, alpha, beta, gamma, T, s_out=None, mmd=False):
     cce_loss = tf.keras.losses.CategoricalCrossentropy()
@@ -100,13 +108,49 @@ def get_loss(t_out, labels, task, alpha, beta, gamma, T, s_out=None, mmd=False):
         s_f, s_va, s_expr, s_au = s_out
         t_expr = softmax(t_expr/T)
         s_expr = softmax(s_expr/T)
+
+
+        loss = 0
         if task == 'VA':
+            # tmp = alpha * loss_ccc(s_va, labels)
+            # tmp2 = loss_ccc(s_va, t_va)
+            # tmp3 = beta * cce_loss(t_expr, s_expr)
+            # tmp4 = bce_loss(t_au, s_au)
+            # tmp5 = beta * (cce_loss(t_expr, s_expr) + bce_loss(t_au, s_au))
+            # tmp6 = tmp + tmp2 + tmp3 + tmp4 + tmp5
+
+            # tmp_ = loss_ccc(s_va, labels)
+            # loss += alpha * loss_ccc(s_va, labels)
+            # loss += loss_ccc(s_va, t_va)
+            # tmp = (cce_loss(t_expr, s_expr))
+            # loss += beta * tmp
+            # loss += bce_loss(t_au, s_au)
             loss = alpha * loss_ccc(s_va, labels) + loss_ccc(s_va, t_va) + \
                    beta * (cce_loss(t_expr, s_expr) + bce_loss(t_au, s_au))
         elif task == 'EXPR':
+            # tmp_7 = cce_loss(s_expr, labels)
+            # tmp = alpha * cce_loss(s_expr, labels)
+            # tmp2 = cce_loss(s_expr, t_expr)
+            # tmp3 = loss_ccc(s_va, t_va)
+            # tmp4 = bce_loss(t_au, s_au)
+            # # tmp5 = beta * (cce_loss(t_expr, s_expr) + bce_loss(t_au, s_au))
+            # # tmp6 = tmp + tmp2 + tmp3 + tmp4 + tmp5
+            # tmp_ = cce_loss(s_expr, labels)
+            # loss += alpha * cce_loss(s_expr, labels)
+            # tmp = cce_loss(s_expr, t_expr)
+            # loss += tmp
+            # loss += loss_ccc(s_va, t_va)
+            # loss += bce_loss(t_au, s_au)
+
+
             loss = alpha * cce_loss(s_expr, labels) + cce_loss(s_expr, t_expr) + \
                    beta * (loss_ccc(s_va, t_va) + bce_loss(t_au, s_au))
         elif task == 'AU':
+            # tmp = alpha * cce_loss(s_expr, labels)
+            # tmp2 = cce_loss(s_expr, t_expr)
+            # tmp3 = beta * (loss_ccc(s_va, t_va))
+            # tmp4 = bce_loss(t_au, s_au)
+
             loss = alpha * bce_loss(s_au, labels) + bce_loss(s_au, t_au) + \
                    beta * (loss_ccc(s_va, t_va) + cce_loss(s_expr, t_expr))
         else:
