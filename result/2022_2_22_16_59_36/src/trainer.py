@@ -8,7 +8,6 @@ import os
 import shutil
 class Trainer():
     def __init__(self, teacher, student, alpha, beta, gamma, batch_size, gen):
-        self.gen = gen
         self.ce = tf
         self.alpha = alpha
         self.beta = beta
@@ -113,7 +112,7 @@ class Trainer():
             self.train_loss_dict = update_dict(self.train_loss_dict, train_loss_dict)
             mean_valid = float(np.mean([valid_metric_dict[x][0] for x in valid_metric_dict]))
             if mean_valid > best_metric:
-                self.teacher.save_weights(os.path.join(self.weight_path, 'teacher.h5'))
+                self.save_weights()
                 early_stop = 0
             else:
                 early_stop += 1
@@ -121,12 +120,12 @@ class Trainer():
                 break
             self.train_dataloader.shuffle()
             self.valid_dataloader.shuffle()
-            self.save_result('teacher')
-    def save_result(self, model):
+            self.save_result()
+    def save_result(self):
         # loss, metric 딕셔너리 저장
-        save_pickle(self.train_loss_dict, os.path.join(self.dict_path, f'{model}_train_loss.pickle'))
-        save_pickle(self.valid_loss_dict, os.path.join(self.dict_path, f'{model}_valid_loss.pickle'))
-        save_pickle(self.valid_metric_dict, os.path.join(self.dict_path, f'{model}_valid_metric.pickle'))
+        save_pickle(self.train_loss_dict, os.path.join(self.dict_path, 'train_loss.pickle'))
+        save_pickle(self.valid_loss_dict, os.path.join(self.dict_path, 'valid_loss.pickle'))
+        save_pickle(self.valid_metric_dict, os.path.join(self.dict_path, 'valid_metric.pickle'))
 
 
     def train_student(self, epochs):

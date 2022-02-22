@@ -15,18 +15,9 @@ def main():
     teacher = get_model(configs, teacher=True)
     student = get_model(configs, teacher=False)
 
-    trainer = Trainer(teacher, student, alpha=1.5, beta=0.5, gamma=1, batch_size=batch_size, gen=0)
+    trainer = Trainer(teacher, student, alpha=1.5, beta=0.5, gamma=1, batch_size=batch_size, gen=1)
     trainer.train_teacher(epochs)
     trainer.train_student(epochs)
-
-    for gen in range(configs['generation']):
-        new_teacher = trainer.student
-        student = get_model(configs, teacher=False)
-        trainer = Trainer(new_teacher, student, alpha=1.5, beta=0.5, gamma=1, batch_size=batch_size, gen=gen+1)
-        trainer.train_student(epochs)
-
-
-
 
 
 

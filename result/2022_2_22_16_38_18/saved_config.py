@@ -11,6 +11,5 @@ configs = {
     'latm_layers': [256],
     'dropout_rate':0.2,
     'temperature':2,
-    'early_stop': 10,
-    'generation':3
+    'early_stop': 10
 }
