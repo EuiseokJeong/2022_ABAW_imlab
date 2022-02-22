@@ -9,6 +9,7 @@ import os
 import shutil
 import warnings
 from silence_tensorflow import silence_tensorflow
+
 class Trainer():
     def __init__(self):
         self.gen_cnt = 0
