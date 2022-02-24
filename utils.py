@@ -55,7 +55,8 @@ def check_dir(path):
     if not os.path.isdir(path):
         os.mkdir(path)
 
-def f1_metric(x, y):
+def expr_f1_metric(x, y):
+    x = Softmax()(x)
     if not len(x.shape) == 1:
         if x.shape[1] == 1:
             x = x.reshape(-1)
@@ -66,21 +67,41 @@ def f1_metric(x, y):
             y = y.reshape(-1)
         else:
             y = np.argmax(y, axis=-1)
-
     f1 = f1_score(x, y, average='macro')
     return float(np.mean(f1))
-def get_metric(out, labels, task):
+
+def au_f1_metric(input, target, threshold):
+    input = np.where(np.where(input >= threshold, 1, input) < threshold, 0, np.where(input >= threshold, 1, input))
+    N, label_size = input.shape
+#     print(N, label_size)
+    f1s = []
+    for i in range(label_size):
+        f1 = f1_score(input[:, i], target[:, i])
+        f1s.append(f1)
+    return np.mean(f1s)
+
+def get_metric(out, labels, task, au_threshold):
     t_f, t_va, t_expr, t_au = out
     if task == 'VA':
         ccc = metric_CCC(t_va, labels)
-        metric = float(np.mean(ccc))
+        return float(np.mean(ccc))
     elif task == 'EXPR':
-        metric = f1_metric(t_expr, labels)
+        return expr_f1_metric(t_expr, labels)
     elif task == 'AU':
-        metric = f1_metric(t_au, labels)
+        return au_f1_metric(t_au, labels, au_threshold)
+    elif task == 'MTL':
+        label = np.stack([np.hstack(x) for x in labels])
+        va_l = label[:, 0:2]
+        expr_l = label[:, 2:10]
+        au_l = label[:, 10:]
+        metric = 0
+        ccc = metric_CCC(t_va, va_l)
+        metric += float(np.mean(ccc))
+        metric += expr_f1_metric(t_expr, expr_l)
+        metric += au_f1_metric(t_au, au_l, au_threshold)
+        return metric
     else:
         raise ValueError(f"Task {task} is not valid!")
-    return metric
 # class custom_loss():
 #     def __init__(self, alpha, beta, gamma, mmd):
 #         self.ce_loss = tf.keras.losses.CategoricalCrossentropy()
@@ -108,55 +129,26 @@ def get_loss(t_out, labels, task, alpha, beta, gamma, T, s_out=None, mmd=False):
         s_f, s_va, s_expr, s_au = s_out
         t_expr = softmax(t_expr/T)
         s_expr = softmax(s_expr/T)
-
-
-        loss = 0
         if task == 'VA':
-            # tmp = alpha * loss_ccc(s_va, labels)
-            # tmp2 = loss_ccc(s_va, t_va)
-            # tmp3 = beta * cce_loss(t_expr, s_expr)
-            # tmp4 = bce_loss(t_au, s_au)
-            # tmp5 = beta * (cce_loss(t_expr, s_expr) + bce_loss(t_au, s_au))
-            # tmp6 = tmp + tmp2 + tmp3 + tmp4 + tmp5
-
-            # tmp_ = loss_ccc(s_va, labels)
-            # loss += alpha * loss_ccc(s_va, labels)
-            # loss += loss_ccc(s_va, t_va)
-            # tmp = (cce_loss(t_expr, s_expr))
-            # loss += beta * tmp
-            # loss += bce_loss(t_au, s_au)
             loss = alpha * loss_ccc(s_va, labels) + loss_ccc(s_va, t_va) + \
                    beta * (cce_loss(t_expr, s_expr) + bce_loss(t_au, s_au))
         elif task == 'EXPR':
-            # tmp_7 = cce_loss(s_expr, labels)
-            # tmp = alpha * cce_loss(s_expr, labels)
-            # tmp2 = cce_loss(s_expr, t_expr)
-            # tmp3 = loss_ccc(s_va, t_va)
-            # tmp4 = bce_loss(t_au, s_au)
-            # # tmp5 = beta * (cce_loss(t_expr, s_expr) + bce_loss(t_au, s_au))
-            # # tmp6 = tmp + tmp2 + tmp3 + tmp4 + tmp5
-            # tmp_ = cce_loss(s_expr, labels)
-            # loss += alpha * cce_loss(s_expr, labels)
-            # tmp = cce_loss(s_expr, t_expr)
-            # loss += tmp
-            # loss += loss_ccc(s_va, t_va)
-            # loss += bce_loss(t_au, s_au)
-
-
             loss = alpha * cce_loss(s_expr, labels) + cce_loss(s_expr, t_expr) + \
                    beta * (loss_ccc(s_va, t_va) + bce_loss(t_au, s_au))
         elif task == 'AU':
-            # tmp = alpha * cce_loss(s_expr, labels)
-            # tmp2 = cce_loss(s_expr, t_expr)
-            # tmp3 = beta * (loss_ccc(s_va, t_va))
-            # tmp4 = bce_loss(t_au, s_au)
-
             loss = alpha * bce_loss(s_au, labels) + bce_loss(s_au, t_au) + \
-                   beta * (loss_ccc(s_va, t_va) + cce_loss(s_expr, t_expr))
+                    beta * (loss_ccc(s_va, t_va) + cce_loss(s_expr, t_expr))
+        elif task == 'MTL':
+            label = np.stack([np.hstack(x) for x in labels])
+            va_l = label[:, 0:2]
+            expr_l = label[:, 2:10]
+            au_l = label[:, 10:]
+            loss = loss_ccc(s_va, va_l) + cce_loss(s_expr, expr_l) +  bce_loss(s_au, au_l)
         else:
             raise ValueError(f"Task {task} is not valid!")
         if mmd:
             loss += gamma * mmd(t_f, s_f)
+
     elif s_out is None:
         t_expr = softmax(t_expr / T)
         if task == 'VA':
@@ -165,6 +157,13 @@ def get_loss(t_out, labels, task, alpha, beta, gamma, T, s_out=None, mmd=False):
             loss = cce_loss(t_expr, labels)
         elif task == 'AU':
             loss = bce_loss(t_au, labels)
+        elif task == 'MTL':
+            label = np.stack([np.hstack(x) for x in labels])
+            va_l = label[:,0:2]
+            expr_l = label[:,2:10]
+            au_l = label[:,10:]
+            # va_l, expr_l, au_l = labels
+            loss = loss_ccc(t_va, va_l) + cce_loss(t_expr, expr_l) + bce_loss(t_au, au_l)
         else:
             raise ValueError(f"Task {task} is not valid!")
     # print(task, loss)

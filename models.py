@@ -1,42 +1,40 @@
 import tensorflow as tf
 from tensorflow.keras.layers import Activation, Dense, BatchNormalization, Dropout, LSTM, Concatenate, Lambda, LeakyReLU, Softmax, Input
+from tensorflow.keras.activations import swish
 import numpy as np
 from config import configs
 from tensorflow.keras.utils import get_custom_objects
-def get_model(configs, teacher):
+def get_model(configs):
     FE_layers = configs['feature_extractor_layers']
     lstm_layers = configs['latm_layers']
     classifier_layers = configs['classifier_layers']
     dropout_rate = configs['dropout_rate']
-    if teacher:
-        temp = 1
-    else:
-        temp =configs['temperature']
-
     class classifier(tf.keras.Model):
         def __init__(self, task):
             super(classifier, self).__init__()
-            self.dense_1 = Dense(128, activation=LeakyReLU(alpha=0.3))
-            # self.dense_1 = Dense(128, activation='relu')
-            self.bn1 = BatchNormalization()
-            # self.t_softmax = softmax_with_temperature(temp)
+            self.classifier_layers = [[Dense(i), BatchNormalization(), swish, Dropout(dropout_rate)] for i in classifier_layers]
+            # self.dense_1 = Dense(128, activation=LeakyReLU(alpha=0.3))
+            # # self.dense_1 = Dense(128, activation='relu')
+            # self.bn1 = BatchNormalization()
+            # # self.t_softmax = softmax_with_temperature(temp)
             if task == 'VA':
-                self.dense_2 = Dense(2, activation='tanh')
+                self.dense = Dense(2, activation='tanh')
             elif task == 'EXPR':
-                self.dense_2 = Dense(8)
-                # self.dense_2 = Dense(8)
+                self.dense = Dense(8)
             elif task == 'AU':
-                self.dense_2 = Dense(12, activation='sigmoid')
+                self.dense = Dense(12, activation='sigmoid')
             else:
                 raise ValueError(f"Task {task} is not valid!")
         def call(self, input):
-            h = self.dense_1(input)
-            h = self.bn1(h)
-            output = self.dense_2(h)
+            h = input
+            for layers in self.classifier_layers:
+                for layer in layers:
+                    h = layer(h)
+
+            # h = self.dense_1(input)
+            # h = self.bn1(h)
+            output = self.dense(h)
             return output
-        # def softmax_with_temperature(self, x):
-        #     logits = x / configs['temperature']
-        #     return np.exp(logits) / np.sum(np.exp(logits))
 
     class model(tf.keras.Model):
         def __init__(self):
@@ -66,27 +64,35 @@ def get_model(configs, teacher):
             super(feature_extractor, self).__init__()
             self.img_reshape = tf.keras.layers.Reshape((6,512))
             self.lstm_1 = LSTM(512, activation='relu', dtype='float32')
-            self.dense_1 = Dense(1024, activation=LeakyReLU(alpha=0.3), dtype='float32')
-            # self.dense_1 = Dense(1024, activation='relu')
-            self.bn_1 = BatchNormalization()
-            self.dense_2 = Dense(512, activation=LeakyReLU(alpha=0.3))
-            # self.dense_2 = Dense(512, activation='relu')
-            self.bn_2 = BatchNormalization()
-            self.dense_3 = Dense(256, activation=LeakyReLU(alpha=0.3))
-            # self.dense_3 = Dense(256, activation='relu')
-            self.bn_3 = BatchNormalization()
-            # self.FE_layers = [(Dense(i, activation='relu'), Dropout(dropout_rate), BatchNormalization()) for i in FE_layers]
+            # self.dense_1 = Dense(1024, activation=LeakyReLU(alpha=0.3), dtype='float32')
+            # # self.dense_1 = Dense(1024, activation='relu')
+            # self.bn_1 = BatchNormalization()
+            # self.dense_2 = Dense(512, activation=LeakyReLU(alpha=0.3))
+            # # self.dense_2 = Dense(512, activation='relu')
+            # self.bn_2 = BatchNormalization()
+            # self.dense_3 = Dense(256, activation=LeakyReLU(alpha=0.3))
+            # # self.dense_3 = Dense(256, activation='relu')
+            # self.bn_3 = BatchNormalization()
+            self.FE_layers = [[Dense(i), BatchNormalization(), swish, Dropout(dropout_rate)] for i in FE_layers]
 
         def call(self, img_feature, audio_feature):
             img_feature = self.img_reshape(img_feature)
             img_feature = self.lstm_1(img_feature)
             feature = Concatenate()([img_feature, audio_feature])
-            h = self.dense_1(feature)
-            h = self.bn_1(h)
-            h = self.dense_2(h)
-            h = self.bn_2(h)
-            output = self.dense_3(h)
-            return output
+            for layers in self.FE_layers:
+                for layer in layers:
+                    feature = layer(feature)
+                # dense, bn, swish, dropout = layers
+                # feature = dense(feature)
+                # feature = bn(feature)
+                # feature = swish(feature)
+                # feature = dropout(feature)
+            # h = self.dense_1(feature)
+            # h = self.bn_1(h)
+            # h = self.dense_2(h)
+            # h = self.bn_2(h)
+            # output = self.dense_3(h)
+            return feature
 
 
 

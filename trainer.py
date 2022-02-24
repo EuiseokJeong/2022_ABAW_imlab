@@ -17,15 +17,14 @@ class Trainer():
         self.epochs = configs['epochs']
         self.beta = configs['beta']
         self.gen = configs['generation']
-        self.gamma = configs['beta']
+        self.gamma = configs['gamma']
         self.T = configs['temperature']
-        self.t_train_loss, self.s_train_loss, self.t_valid_loss, self.s_valid_loss, self.t_valid_metric, self.s_valid_metric = [],[],[],[],[],[]
-        self.t_optimizer = tf.keras.optimizers.Adam(learning_rate=0.00001, clipnorm=1.)
-        self.s_optimizer = tf.keras.optimizers.Adam(learning_rate=0.00001, clipnorm=1.)
+        self.threshold = configs['au_threshold']
+        # self.t_train_loss, self.s_train_loss, self.t_valid_loss, self.s_valid_loss, self.t_valid_metric, self.s_valid_metric = [],[],[],[],[],[]
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=configs['learning_rate'])
         self.train_dataloader = dataloader(type='train', batch_size=configs['batch_size'])
         self.valid_dataloader = dataloader(type='valid', batch_size=configs['batch_size'])
         self.set_result_path()
-        self.train()
     def set_result_path(self):
         base_path = os.getcwd()
         result_path = os.path.join(base_path, 'result')
@@ -53,77 +52,11 @@ class Trainer():
         # self.weight_path = os.path.join(self.weight_path, f"gen_{self.gen_cnt}")
         for path in [self.plot_path]:
             check_dir(path)
-    def t_train_epoch(self, dataloader, epoch):
-        loss_list = []
-        train_loss = {'VA': [], 'EXPR': [], 'AU': []}
-        iter = dataloader.max_iter
-        st_time = time.time()
-        for i, data in enumerate(dataloader):
-            with tf.GradientTape() as tape:
-                loss = 0
-                for task_data in data:
-                    vid_names, idxes, images, audios, labels, task = task_data
-                    t_out = self.teacher(images, audios, training=True)
-                    task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, self.gamma, 1)
-                    loss += task_loss
-                    train_loss[task].append(float(task_loss))
-            teacher_gradient = tape.gradient(loss, self.teacher.trainable_weights)
-            self.t_optimizer.apply_gradients(zip(teacher_gradient, self.teacher.trainable_weights))
-            loss_list.append(float(loss))
-            print('\r', f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || train_loss: {float(np.mean(loss_list)):.2f} ({time.time() - st_time:.1f}/{(time.time() - st_time)/(i+1)*iter:.1f})sec", end = '')
-        for key in train_loss.keys():
-            train_loss[key] = [float(np.mean(train_loss[key]))]
-        return train_loss
 
-    def s_train_epoch(self, dataloader, epoch):
-        loss_list = []
-        train_loss = {'VA': [], 'EXPR': [], 'AU': []}
-        iter = dataloader.max_iter
-        st_time = time.time()
-        for i, data in enumerate(dataloader):
-
-            with tf.GradientTape() as tape:
-                loss = 0
-                for task_data in data:
-                    vid_names, idxes, images, audios, labels, task = task_data
-                    t_out = self.teacher(images, audios, training=False)
-                    s_out = self.student(images, audios, training=True)
-                    task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, self.gamma, self.T, s_out=s_out)
-                    loss += task_loss
-                    train_loss[task].append(float(task_loss))
-            student_gradient = tape.gradient(loss, self.student.trainable_variables)
-            self.s_optimizer.apply_gradients(zip(student_gradient, self.student.trainable_variables))
-            loss_list.append(float(loss))
-            print('\r',f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || train_loss: {float(np.mean(loss_list)):.2f} {time.time() - st_time:.2f}sec", end = '')
-        for key in train_loss.keys():
-            train_loss[key] = [float(np.mean(train_loss[key]))]
-        return train_loss
     def init_dict(self):
-        self.train_loss_dict = {'VA': [], 'EXPR': [], 'AU': []}
-        self.valid_metric_dict = {'VA': [], 'EXPR': [], 'AU': []}
-        self.valid_loss_dict = {'VA': [], 'EXPR': [], 'AU': []}
-    def train_teacher(self):
-        best_metric = 0
-        self.init_dict()
-        early_stop = 0
-        for epoch in range(self.epochs):
-            train_loss_dict = self.t_train_epoch(self.train_dataloader, epoch)
-            # loss_list.append(loss)
-            valid_loss_dict, valid_metric_dict = self.valid(self.valid_dataloader, self.teacher, 1, epoch)
-            self.valid_loss_dict = update_dict(self.valid_loss_dict, valid_loss_dict)
-            self.valid_metric_dict = update_dict(self.valid_metric_dict, valid_metric_dict)
-            self.train_loss_dict = update_dict(self.train_loss_dict, train_loss_dict)
-            mean_valid = float(np.mean([valid_metric_dict[x][0] for x in valid_metric_dict]))
-            self.save_result()
-            if mean_valid > best_metric:
-                self.save_weights()
-                early_stop = 0
-            else:
-                early_stop += 1
-            if early_stop == configs['early_stop']:
-                break
-            self.train_dataloader.shuffle()
-            self.valid_dataloader.shuffle()
+        self.train_loss_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
+        self.valid_metric_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
+        self.valid_loss_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
     def save_result(self):
         # loss, metric 딕셔너리 저장
         gen_dict = {
@@ -132,59 +65,185 @@ class Trainer():
                 'valid_metric':self.valid_metric_dict
         }
         save_pickle(gen_dict, os.path.join(self.dict_path, f'{self.gen_cnt}_result.pickle'))
-        # save_pickle(self.valid_loss_dict, os.path.join(self.dict_path, f'{self.gen_cnt}_valid_loss.pickle'))
-        # save_pickle(self.valid_metric_dict, os.path.join(self.dict_path, f'{self.gen_cnt}_valid_metric.pickle'))
 
+    def save_weights(self, mean_valid):
+        path = os.path.join(self.weight_path, f'gen_{self.gen_cnt}_val({mean_valid:.2f}).h5')
+        if self.gen_cnt == 0:
+            self.teacher.save_weights(path)
+        else:
+            self.student.save_weights(path)
+        print(f"            weight saved in {path}")
+    def load_weights(self):
+        # self.gen_cnt -1은 가장 teacher
+        # self.gen_cnt는 studeny
+        return
 
-    def train_student(self):
+    # def train_teacher(self):
+    #     best_metric = 0
+    #     self.init_dict()
+    #     early_stop = 0
+    #     for epoch in range(self.epochs):
+    #         train_loss_dict = self.t_train_epoch(self.train_dataloader, epoch)
+    #         # loss_list.append(loss)
+    #         valid_loss_dict, valid_metric_dict = self.valid(self.valid_dataloader, self.teacher, 1, epoch)
+    #         self.valid_loss_dict = update_dict(self.valid_loss_dict, valid_loss_dict)
+    #         self.valid_metric_dict = update_dict(self.valid_metric_dict, valid_metric_dict)
+    #         self.train_loss_dict = update_dict(self.train_loss_dict, train_loss_dict)
+    #         tmp = [valid_metric_dict[x][0] for x in valid_metric_dict]
+    #         mean_valid = float(np.mean([valid_metric_dict[x][0] for x in valid_metric_dict]))
+    #         self.save_result()
+    #         if mean_valid > best_metric:
+    #             self.save_weights()
+    #             early_stop = 0
+    #             best_metric = mean_valid
+    #             print(f'               Weight saved! mean valid: {mean_valid}')
+    #         else:
+    #             early_stop += 1
+    #         if early_stop == configs['early_stop']:
+    #             break
+    #         self.train_dataloader.shuffle()
+    #         self.valid_dataloader.shuffle()
+    def train_gen(self):
         best_metric = 0
         self.init_dict()
         early_stop = 0
         for epoch in range(self.epochs):
-            train_loss_dict = self.s_train_epoch(self.train_dataloader, epoch)
+            train_loss_dict = self.train_epoch(self.train_dataloader, epoch)
 
-            valid_loss_dict, valid_metric_dict = self.valid(self.valid_dataloader, self.student, self.T, epoch)
+            if self.gen_cnt == 0:
+                valid_loss_dict, valid_metric_dict = self.valid(self.valid_dataloader, self.teacher, 1)
+            else:
+                valid_loss_dict, valid_metric_dict = self.valid(self.valid_dataloader, self.student, self.T)
             self.valid_loss_dict = update_dict(self.valid_loss_dict, valid_loss_dict)
             self.valid_metric_dict = update_dict(self.valid_metric_dict, valid_metric_dict)
             self.train_loss_dict = update_dict(self.train_loss_dict, train_loss_dict)
             mean_valid = float(np.mean([valid_metric_dict[x][0] for x in valid_metric_dict]))
             self.save_result()
-
             if mean_valid > best_metric:
                 # self.teacher.save_weights(os.path.join(self.weight_path, 'teacher.h5'))
-                self.save_weights()
+                self.save_weights(mean_valid)
                 early_stop = 0
+                best_metric=mean_valid
             else:
                 early_stop += 1
             if early_stop == configs['early_stop']:
                 break
             self.train_dataloader.shuffle()
             self.valid_dataloader.shuffle()
-
-
-            # loss_list.append(loss)
-            # valid_loss, valid_metric = self.valid(self.valid_dataloader, self.student)
-            # valid_metric_list.append(valid_metric)
-            # if valid_metric > best_metric:
-            #     self.save_weights()
-            #     e
-            # self.train_dataloader.shuffle()
-            # self.valid_dataloader.shuffle()
-
-    def save_weights(self):
-        if self.gen_cnt==0:
-            self.teacher.save_weights(os.path.join(self.weight_path, f't_gen{self.gen_cnt}.h5'))
+    # def train_student(self):
+    #     best_metric = 0
+    #     self.init_dict()
+    #     early_stop = 0
+    #     for epoch in range(self.epochs):
+    #         train_loss_dict = self.s_train_epoch(self.train_dataloader, epoch)
+    #
+    #         valid_loss_dict, valid_metric_dict = self.valid(self.valid_dataloader, self.student, self.T, epoch)
+    #         self.valid_loss_dict = update_dict(self.valid_loss_dict, valid_loss_dict)
+    #         self.valid_metric_dict = update_dict(self.valid_metric_dict, valid_metric_dict)
+    #         self.train_loss_dict = update_dict(self.train_loss_dict, train_loss_dict)
+    #         mean_valid = float(np.mean([valid_metric_dict[x][0] for x in valid_metric_dict]))
+    #         self.save_result()
+    #
+    #         if mean_valid > best_metric:
+    #             # self.teacher.save_weights(os.path.join(self.weight_path, 'teacher.h5'))
+    #             self.save_weights()
+    #             early_stop = 0
+    #             best_metric=mean_valid
+    #         else:
+    #             early_stop += 1
+    #         if early_stop == configs['early_stop']:
+    #             break
+    #         self.train_dataloader.shuffle()
+    #         self.valid_dataloader.shuffle()
+    # def t_train_epoch(self, dataloader, epoch):
+    #     loss_list = []
+    #     train_loss = {'VA': [], 'EXPR': [], 'AU': []}
+    #     iter = dataloader.max_iter
+    #     st_time = time.time()
+    #     for i, data in enumerate(dataloader):
+    #         with tf.GradientTape() as tape:
+    #             loss = 0
+    #             for task_data in data:
+    #                 vid_names, idxes, images, audios, labels, task = task_data
+    #                 t_out = self.teacher(images, audios, training=True)
+    #                 task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, self.gamma, 1)
+    #                 loss += task_loss
+    #                 train_loss[task].append(float(task_loss))
+    #         teacher_gradient = tape.gradient(loss, self.teacher.trainable_weights)
+    #         self.t_optimizer.apply_gradients(zip(teacher_gradient, self.teacher.trainable_weights))
+    #         loss_list.append(float(loss))
+    #         print('\r', f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || train_loss: {float(np.mean(loss_list)):.2f} ({time.time() - st_time:.1f}/{(time.time() - st_time)/(i+1)*iter:.1f})sec", end = '')
+    #     for key in train_loss.keys():
+    #         train_loss[key] = [float(np.mean(train_loss[key]))]
+    #     return train_loss
+    #
+    # def s_train_epoch(self, dataloader, epoch):
+    #     loss_list = []
+    #     train_loss = {'VA': [], 'EXPR': [], 'AU': []}
+    #     iter = dataloader.max_iter
+    #     st_time = time.time()
+    #     for i, data in enumerate(dataloader):
+    #         with tf.GradientTape() as tape:
+    #             loss = 0
+    #             for task_data in data:
+    #                 vid_names, idxes, images, audios, labels, task = task_data
+    #                 t_out = self.teacher(images, audios, training=False)
+    #                 s_out = self.student(images, audios, training=True)
+    #                 task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, self.gamma, self.T, s_out=s_out)
+    #                 loss += task_loss
+    #                 train_loss[task].append(float(task_loss))
+    #         student_gradient = tape.gradient(loss, self.student.trainable_variables)
+    #         self.s_optimizer.apply_gradients(zip(student_gradient, self.student.trainable_variables))
+    #         loss_list.append(float(loss))
+    #         print('\r',
+    #               f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch + 1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || train_loss: {float(np.mean(loss_list)):.2f} {time.time() - st_time:.2f}sec",
+    #               end='')
+    #     for key in train_loss.keys():
+    #         train_loss[key] = [float(np.mean(train_loss[key]))]
+    #     return train_loss
+    def train_epoch(self, dataloader, epoch):
+        loss_list = []
+        train_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
+        iter = dataloader.max_iter
+        st_time = time.time()
+        if self.gen_cnt == 0:
+            s_out = None
+            T = 1
+            t_training = True
         else:
-            self.student.save_weights(os.path.join(self.weight_path, f's_gen{self.gen_cnt}.h5'))
-    def load_weights(self):
-        return
+            T = self.T
+            t_training = False
+        for i, data in enumerate(dataloader):
 
-    def valid(self, dataloader, model, T, epoch):
+            with tf.GradientTape() as tape:
+                loss = 0
+                for task_data in data:
+                    vid_names, idxes, images, audios, labels, task = task_data
+                    if self.gen_cnt != 0:
+                        s_out = self.student(images, audios, training=True)
+                    t_out = self.teacher(images, audios, training=t_training)
+                    task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, self.gamma, T, s_out=s_out)
+                    loss += task_loss
+                    train_loss[task].append(float(task_loss))
+            if self.gen_cnt == 0:
+                gradient = tape.gradient(loss, self.teacher.trainable_variables)
+                self.optimizer.apply_gradients(zip(gradient, self.teacher.trainable_variables))
+            else:
+                gradient = tape.gradient(loss, self.student.trainable_variables)
+                self.optimizer.apply_gradients(zip(gradient, self.student.trainable_variables))
+            loss_list.append(float(loss))
+            print('\r',f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || train_loss: {float(np.mean(loss_list)):.2f} {time.time() - st_time:.2f}sec", end = '')
+        for key in train_loss.keys():
+            train_loss[key] = [float(np.mean(train_loss[key]))]
+        return train_loss
+
+
+    def valid(self, dataloader, model, T):
         print()
         iter = dataloader.max_iter
         st_time = time.time()
-        valid_metric = {'VA': [], 'EXPR':[], 'AU':[]}
-        valid_loss = {'VA': [], 'EXPR': [], 'AU': []}
+        valid_metric = {'VA': [], 'EXPR':[], 'AU':[], 'MTL':[]}
+        valid_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         for i, data in enumerate(dataloader):
 
             for task_data in data:
@@ -192,39 +251,34 @@ class Trainer():
                 out = model(images, audios, training=False)
                 valid_loss[task].append(float(get_loss(out, labels, task, self.alpha, self.beta, self.gamma, T)))
                 # valid_metric[task].append((get_metric(out, labels, task)))
-                valid_metric[task].append(get_metric(out, labels, task))
+                valid_metric[task].append(get_metric(out, labels, task, self.threshold))
                 # valid_metric: {float(np.mean(valid_metric)):.2f}
-                print('\r', f"      ({i + 1:0>5}/{iter:0>5}) Validation gen_{self.gen_cnt} model || valid_metric(VA/EXPR/AU): {float(np.mean(valid_loss['VA'])):.2f}/{float(np.mean(valid_loss['EXPR'])):.2f}/{float(np.mean(valid_loss['AU'])):.2f} time: {time.time() - st_time:.2f}sec", end = '')
+                print('\r', f"      ({i + 1:0>5}/{iter:0>5}) Validation gen_{self.gen_cnt} model || valid_metric(VA/EXPR/AU): {float(np.mean(valid_metric['VA'])):.2f}/{float(np.mean(valid_metric['EXPR'])):.2f}/{float(np.mean(valid_metric['AU'])):.2f} time: {time.time() - st_time:.2f}sec", end = '')
         for key in valid_loss.keys():
             valid_loss[key] = [float(np.mean(valid_loss[key]))]
         for key in valid_metric.keys():
             valid_metric[key] = [float(np.mean(valid_metric[key]))]
         print()
         return valid_loss, valid_metric
-            # loss_list.append(loss)
     def train(self):
         check_and_limit_gpu(configs['limit_gpu'])
+        print(self.weight_path, configs, '\n')
         self.refresh_path()
-        self.teacher = get_model(configs, teacher=True)
-        self.train_teacher()
-        print()
+        self.teacher = get_model(configs)
+        self.train_gen()
         for i in range(self.gen):
-            self.gen_cnt += 1
-            self.student = get_model(configs, teacher=False)
-            self.train_student()
             print()
-
-            self.teacher = get_model(configs, teacher=False)
-            # self.teacher = self.teacher.build_graph()
+            self.gen_cnt += 1
+            self.student = get_model(configs)
+            self.train_gen()
+            print()
+            del self.teacher
+            self.teacher = get_model(configs)
             self.teacher(np.zeros((1,6,1,512)), np.zeros((1,1000)))
             self.teacher.set_weights(self.student.get_weights())
-            # tmp = np.array(self.teacher.get_weights())
-            # tmp2 = np.array(self.student.get_weights())
             check_weight(self.teacher, self.student)
-            # assert (np.array(self.teacher.get_weights()) == np.array(self.student.get_weights())).all()
-            # if (np.array(self.teacher.get_weights()) == np.array(self.student.get_weights())).all():
-            #     raise ValueError("Cloning student model failed!")
+            del self.student
 if __name__=='__main__':
     silence_tensorflow()
     warnings.filterwarnings(action='ignore')
-    Trainer()
+    Trainer().train()
