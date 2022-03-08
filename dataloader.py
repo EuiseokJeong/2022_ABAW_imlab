@@ -4,16 +4,17 @@ import math
 from skimage.io import imread_collection
 import os
 import time
-from config import configs
+
 from scipy.io import wavfile
 import gzip
 import librosa
 import random
 import pickle
 class dataloader(tf.keras.utils.Sequence):
-    def __init__(self, type, batch_size, video_seq_len=2, stride = 10, task_list = ['MTL', 'VA','EXPR','AU']):
+    def __init__(self, type, batch_size, configs, video_seq_len=2, stride = 10, task_list = ['MTL', 'VA','EXPR','AU']):
         # task: 'VA', 'EXPR', 'AU', 'MTL
         self.batch_size = batch_size
+        self.configs = configs
         self.stride = stride
         self.get_dict()
         self.video_seq_len = video_seq_len
@@ -30,11 +31,14 @@ class dataloader(tf.keras.utils.Sequence):
         batch_va_list = self.va_list[idx * self.va_batch_size:(idx + 1) * self.va_batch_size]
         batch_expr_list = self.expr_list[idx * self.expr_batch_size:(idx + 1) * self.expr_batch_size]
         batch_au_list = self.au_list[idx * self.au_batch_size:(idx + 1) * self.au_batch_size]
-        return self.get_data(batch_mtl_list), self.get_data(batch_va_list), self.get_data(batch_expr_list), self.get_data(batch_au_list)
-    def get_data(self, data_list):
+        return self.get_data(batch_mtl_list, 'MTL'), self.get_data(batch_va_list), self.get_data(batch_expr_list), self.get_data(batch_au_list)
+    def get_data(self, data_list, task=None):
         vid_name_list = [x[0] for x in data_list]
         idx_list = [x[1] for x in data_list]
-        label_np = np.array([x[2] for x in data_list])
+        if task == 'MTL':
+            label_np = np.array([x[2] for x in data_list], dtype=object)
+        else:
+            label_np = np.array([x[2] for x in data_list])
         task = data_list[0][3]
 
         image_np = np.array([np.load(os.path.join(self.img_feature_path, vid_name, f"{idx}.npy")) for idx, vid_name in zip(idx_list, vid_name_list)])
@@ -154,14 +158,16 @@ class dataloader(tf.keras.utils.Sequence):
 
     def shuffle(self):
         # 딕셔너리  섞어주고 다시 각각 리스트 만들어주
+        print(f"[INFO] Shuffling dataloader.")
         for key in self.idx_dict.keys():
             random.shuffle(self.idx_dict[key])
 if __name__ == '__main__':
+    from config import configs
     # check_and_limit_gpu(configs['limit_gpu'])
     data_path = configs['data_path']
     stride = configs['stride']
     time_win = configs['time_window']
-    train_loader = dataloader(type='train', video_seq_len = time_win, stride = stride, batch_size=128)
+    train_loader = dataloader(type='train', video_seq_len = time_win, stride = stride, batch_size=128, configs=configs)
     tot_time = time.time()
     st_time = time.time()
 

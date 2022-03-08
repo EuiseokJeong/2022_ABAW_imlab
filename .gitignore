@@ -5,13 +5,14 @@
 *.txt
 *.wav
 *.pickle
-*npy
-*hdf5
+*.npy
+*.hdf5
 /CAPNet
 /tmp
 /result
 ImaginarySoundscape/
 data/2022/tmp
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

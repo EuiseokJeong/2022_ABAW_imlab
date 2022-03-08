@@ -3,7 +3,6 @@ import tensorflow as tf
 import os
 import time
 from sklearn.metrics import f1_score
-from config import configs
 from tensorflow.keras.layers import Softmax
 import pickle
 import gzip
@@ -67,16 +66,19 @@ def expr_f1_metric(x, y):
             y = y.reshape(-1)
         else:
             y = np.argmax(y, axis=-1)
-    f1 = f1_score(x, y, average='macro')
+    f1 = f1_score(x, y, average='macro', zero_division=1)
     return float(np.mean(f1))
 
 def au_f1_metric(input, target, threshold):
-    input = np.where(np.where(input >= threshold, 1, input) < threshold, 0, np.where(input >= threshold, 1, input))
+    # input = np.where(np.where(input >= threshold, 1, input) < threshold, 0, np.where(input >= threshold, 1, input))
+    input = (np.array(input) >= threshold)*1
     N, label_size = input.shape
 #     print(N, label_size)
     f1s = []
     for i in range(label_size):
-        f1 = f1_score(input[:, i], target[:, i])
+        tmp1 = input[:, i]
+        tmp2 = target[:, i]
+        f1 = f1_score(input[:, i], target[:, i],zero_division=1)
         f1s.append(f1)
     return np.mean(f1s)
 
@@ -84,11 +86,11 @@ def get_metric(out, labels, task, au_threshold):
     t_f, t_va, t_expr, t_au = out
     if task == 'VA':
         ccc = metric_CCC(t_va, labels)
-        return float(np.mean(ccc))
+        metric = float(np.mean(ccc))
     elif task == 'EXPR':
-        return expr_f1_metric(t_expr, labels)
+        metric = expr_f1_metric(t_expr, labels)
     elif task == 'AU':
-        return au_f1_metric(t_au, labels, au_threshold)
+        metric = au_f1_metric(t_au, labels, au_threshold)
     elif task == 'MTL':
         label = np.stack([np.hstack(x) for x in labels])
         va_l = label[:, 0:2]
@@ -96,12 +98,19 @@ def get_metric(out, labels, task, au_threshold):
         au_l = label[:, 10:]
         metric = 0
         ccc = metric_CCC(t_va, va_l)
-        metric += float(np.mean(ccc))
-        metric += expr_f1_metric(t_expr, expr_l)
-        metric += au_f1_metric(t_au, au_l, au_threshold)
+        # metric += float(np.mean(ccc))
+        mtl_va = float(np.mean(ccc))
+        # metric += expr_f1_metric(t_expr, expr_l)
+        mtl_expr = expr_f1_metric(t_expr, expr_l)
+        # metric += au_f1_metric(t_au, au_l, au_threshold)
+        mtl_au = au_f1_metric(t_au, au_l, au_threshold)
+        metric = mtl_va + mtl_expr + mtl_au
         return metric
     else:
         raise ValueError(f"Task {task} is not valid!")
+    if np.isnan(metric).any():
+        return 'nan'
+    return metric
 # class custom_loss():
 #     def __init__(self, alpha, beta, gamma, mmd):
 #         self.ce_loss = tf.keras.losses.CategoricalCrossentropy()
