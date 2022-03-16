@@ -60,9 +60,7 @@ class tester():
         result_list = [x+'\n' for x in result_list]
         with open(result_path, 'w') as f:
             f.writelines(result_list)
-        # print()
 
-                # valid_metric[key] = [float(np.mean(valid_metric[key]))]
     def write_submit(self, testset_list):
         test_path = os.path.join(self.result_path, 'test')
         check_dir(test_path)

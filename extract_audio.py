@@ -198,7 +198,7 @@ if __name__ == '__main__':
     check_dir(merge_path)
 
     # video_to_audio(video_path, audio_path)
-    # audio_crop(video_path, audio_path, cropped_audio_path)
-    extract_audio_feature(cropped_audio_path, audio_feature_path)
+    audio_crop(video_path, audio_path, cropped_audio_path)
+    # extract_audio_feature(cropped_audio_path, audio_feature_path)
     # extract_image_feature(cropped_image_path, image_feature_path)
     # merge_image_feature(image_feature_path, merge_path, time_window=time_win, stride=stride, minus_num = 0)

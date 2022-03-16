@@ -105,7 +105,6 @@ def get_metric(out, labels, task, au_threshold):
         # metric += au_f1_metric(t_au, au_l, au_threshold)
         mtl_au = au_f1_metric(t_au, au_l, au_threshold)
         metric = mtl_va + mtl_expr + mtl_au
-        return metric
     else:
         raise ValueError(f"Task {task} is not valid!")
     if np.isnan(metric).any():
@@ -176,7 +175,8 @@ def get_loss(t_out, labels, task, alpha, beta, gamma, T, s_out=None, mmd=False):
         else:
             raise ValueError(f"Task {task} is not valid!")
     # print(task, loss)
-    return tf.cast(loss, dtype=tf.float64)
+    # return tf.cast(loss, dtype=tf.float64)
+    return loss
 
 def update_dict(prev_dict, add_dict):
     for key in add_dict.keys():

@@ -1,5 +1,5 @@
 import tensorflow as tf
-from keras.layers import Reshape
+from tensorflow.keras.layers import Reshape
 from tensorflow.keras.layers import Activation, Dense, BatchNormalization, Dropout, LSTM, Concatenate, Lambda, LeakyReLU, Softmax, Input
 from tensorflow.keras.activations import swish, sigmoid, tanh
 import numpy as np
@@ -153,7 +153,7 @@ def get_model(configs):
             self.dense = Dense(layer_num)
             self.bn = BatchNormalization()
             self.activation = activation
-            self.dropout = Dropout(dropout_rate)
+            self.dropout = Dropout(drop_rate)
 
         def call(self, x):
             h = self.dense(x)
@@ -171,7 +171,7 @@ def get_model(configs):
     h = Concatenate()([img_feature, audio_input])
 
     for i in FE_layers:
-        h = dense_module(i, swish, drop_rate=0.2)(h)
+        h = dense_module(i, swish, drop_rate=configs['dropout_rate'])(h)
     feature_out = h
 
     # va classifier

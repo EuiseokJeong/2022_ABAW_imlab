@@ -67,6 +67,7 @@ class Trainer():
         # loss, metric 딕셔너리 저장
         gen_dict = {
                 'train_loss':self.train_loss_dict,
+                'train_metric':self.train_metric_dict,
                 'valid_loss':self.valid_loss_dict,
                 'valid_metric':self.valid_metric_dict
         }
@@ -112,6 +113,7 @@ class Trainer():
         early_stop = 0
         self.valid_dataloader.shuffle()
         for epoch in range(self.epochs):
+
             self.train_dataloader.shuffle()
             train_loss_dict, train_metric_dict = self.train_epoch(self.train_dataloader, epoch)
             valid_loss_dict, valid_metric_dict = self.valid(self.teacher, self.valid_dataloader) if self.gen_cnt == 0 \
@@ -135,7 +137,13 @@ class Trainer():
                 early_stop += 1
             if early_stop == self.configs['early_stop']:
                 break
-
+        self.plot_result()
+    def plot_result(self):
+        # self.train_loss_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': []}
+        # self.train_metric_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': []}
+        # self.valid_metric_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': []}
+        # self.valid_loss_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': []}
+        return
 
     def train_epoch(self, dataloader, epoch):
         loss_list = []
@@ -170,6 +178,31 @@ class Trainer():
             else:
                 gradient = tape.gradient(loss, self.student.trainable_variables)
                 self.optimizer.apply_gradients(zip(gradient, self.student.trainable_variables))
+
+
+                # loss = 0
+                # for task_data in data:
+                #     with tf.GradientTape() as tape:
+                #         vid_names, idxes, images, audios, labels, task = task_data
+                #         s_out = self.student([images, audios], training=True) if self.gen_cnt != 0 else None
+                #         t_out = self.teacher([images, audios], training=t_training)
+                #         task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, self.gamma, T, s_out=s_out)
+                #         task_metric = get_metric(t_out, labels, task, self.threshold) if self.gen_cnt == 0 else get_metric(s_out, labels, task, self.threshold)
+                #         if task_metric == 'nan':
+                #             continue
+                #
+                #     loss += task_loss
+                #     train_loss[task].append(float(task_loss))
+                #     train_metric[task].append(float(task_metric))
+                #     if self.gen_cnt == 0:
+                #         gradient = tape.gradient(loss, self.teacher.trainable_variables)
+                #         self.optimizer.apply_gradients(zip(gradient, self.teacher.trainable_variables))
+                #     else:
+                #         gradient = tape.gradient(loss, self.student.trainable_variables)
+                #         self.optimizer.apply_gradients(zip(gradient, self.student.trainable_variables))
+
+
+
             loss_list.append(float(loss))
             print('\r',f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || train_loss: {float(np.mean(loss_list)):.2f} "
                        f"train_metric(VA/EXPR/AU/MTL): {float(np.mean(train_metric['VA'])):.2f}/{float(np.mean(train_metric['EXPR'])):.2f}/{float(np.mean(train_metric['AU'])):.2f}/{float(np.mean(train_metric['MTL'])):.2f} {time.time() - st_time:.2f}sec", end = '')
@@ -215,12 +248,11 @@ class Trainer():
         print(self.weight_path, self.configs, '\n')
         self.refresh_path()
 
-        self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/ABAW/result/2022_3_5_21_44_27/weight/epoch(28)model_gen_0')
+        self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/ABAW/result/keep/temperature/2022_3_15_17_12_39(t_3)/weight/epoch(17)model_gen_1')
 
         # self.teacher = get_model(self.configs)
         tf.keras.utils.plot_model(self.teacher, to_file=os.path.join(self.time_path, 'model.png'), show_shapes=True)
         # self.train_gen()
-
 
         for i in range(self.gen):
             self.gen_cnt += 1
