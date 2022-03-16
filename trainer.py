@@ -29,7 +29,7 @@ class Trainer():
         check_and_limit_gpu(self.configs['limit_gpu'])
     def set_result_path(self):
         base_path = os.getcwd()
-        result_path = os.path.join(base_path, 'result')
+        result_path = os.path.join(base_path, 'NAS', 'result')
         check_dir(result_path)
         now = time.localtime()
         self.time_path = os.path.join(result_path,f"{now.tm_year}_{now.tm_mon}_{now.tm_mday}_{now.tm_hour}_{now.tm_min}_{now.tm_sec}")
