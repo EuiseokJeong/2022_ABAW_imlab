@@ -46,11 +46,11 @@ class Trainer():
         os.mkdir(self.plot_path)
         os.mkdir(self.dict_path)
         # save config in time_path
-        shutil.copy(os.path.join(base_path, 'config.py'), os.path.join(self.time_path, 'saved_config.py'))
+        shutil.copyfile(os.path.join(base_path, 'config.py'), os.path.join(self.time_path, 'saved_config.py'))
         # save source code in src_path
         py_list = [file for file in os.listdir(base_path) if file.endswith(".py")]
         for py in py_list:
-            shutil.copy(os.path.join(base_path, py), os.path.join(src_path, py))
+            shutil.copyfile(os.path.join(base_path, py), os.path.join(src_path, py))
     def refresh_path(self):
         # self.dict_path = os.path.join(self.dict_path, f"gen_{self.gen_cnt}")
         self.plot_path = os.path.join(self.plot_path, f"gen_{self.gen_cnt}")
@@ -248,7 +248,8 @@ class Trainer():
         print(self.weight_path, self.configs, '\n')
         self.refresh_path()
 
-        self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/ABAW/result/keep/temperature/2022_3_15_17_12_39(t_3)/weight/epoch(17)model_gen_1')
+        # self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/ABAW/result/keep/temperature/2022_3_15_17_12_39(t_3)/weight/epoch(17)model_gen_1')
+        self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/imlab/2022_ABAW_imlab/NAS/2022/result/keep/generation/2022_3_5_21_44_27(teacher_gen_0)/weight/epoch(28)model_gen_0')
 
         # self.teacher = get_model(self.configs)
         tf.keras.utils.plot_model(self.teacher, to_file=os.path.join(self.time_path, 'model.png'), show_shapes=True)
@@ -261,6 +262,7 @@ class Trainer():
 if __name__=='__main__':
     from config import configs
 
+    os.environ["CUDA_VISIBLE_DEVICES"] = f"{configs['gpu_num']}"
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     silence_tensorflow()
     warnings.filterwarnings(action='ignore')
