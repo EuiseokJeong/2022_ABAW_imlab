@@ -39,6 +39,7 @@ class Trainer():
         self.plot_path = os.path.join(self.time_path, 'plot')
         src_path = os.path.join(self.time_path, 'src')
         self.dict_path = os.path.join(self.time_path, 'dict')
+        print(f"[INFO] result_path: {self.time_path}")
 
 
         os.mkdir(self.weight_path)
