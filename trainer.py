@@ -205,7 +205,7 @@ class Trainer():
 
             loss_list.append(float(loss))
             print('\r',f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || train_loss: {float(np.mean(loss_list)):.2f} "
-                       f"train_metric(VA/EXPR/AU/MTL): {float(np.mean(train_metric['VA'])):.2f}/{float(np.mean(train_metric['EXPR'])):.2f}/{float(np.mean(train_metric['AU'])):.2f}/{float(np.mean(train_metric['MTL'])):.2f} {time.time() - st_time:.2f}sec", end = '')
+                       f"train_metric(VA/EXPR/AU/MTL): {float(np.mean(train_metric['VA'])):.2f}/{float(np.mean(train_metric['EXPR'])):.2f}/{float(np.mean(train_metric['AU'])):.2f}/{float(np.mean(train_metric['MTL'])):.2f} {time.time() - st_time:.2f}sec({(i + 1)/(time.time() - st_time):.2f}it/s)s", end = '')
         for key in train_loss.keys():
             train_loss[key] = [float(np.mean(train_loss[key]))]
             train_metric[key] = [float(np.mean(train_metric[key]))]
@@ -237,7 +237,7 @@ class Trainer():
                 if task_metric == 'nan':
                     continue
                 valid_metric[task].append(task_metric)
-                print('\r', f"      ({i + 1:0>5}/{iter:0>5}) Validation gen_{self.gen_cnt} model || valid_metric(VA/EXPR/AU/MTL): {float(np.mean(valid_metric['VA'])):.2f}/{float(np.mean(valid_metric['EXPR'])):.2f}/{float(np.mean(valid_metric['AU'])):.2f}/{float(np.mean(valid_metric['MTL'])):.2f} time: {time.time() - st_time:.2f}sec", end = '')
+                print('\r', f"      ({i + 1:0>5}/{iter:0>5}) Validation gen_{self.gen_cnt} model || valid_metric(VA/EXPR/AU/MTL): {float(np.mean(valid_metric['VA'])):.2f}/{float(np.mean(valid_metric['EXPR'])):.2f}/{float(np.mean(valid_metric['AU'])):.2f}/{float(np.mean(valid_metric['MTL'])):.2f} time: {time.time() - st_time:.2f}sec({(i + 1)/(time.time() - st_time):.2f}it/s)", end = '')
         for key in valid_loss.keys():
             valid_loss[key] = [float(np.mean(valid_loss[key]))]
         for key in valid_metric.keys():
