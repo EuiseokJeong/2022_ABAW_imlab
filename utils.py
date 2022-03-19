@@ -128,7 +128,7 @@ def check_weight(src_model, target_model):
     for src_weight, target_weight in zip(src_weights, target_weights):
         assert (src_weight == target_weight).all()
 
-def get_loss(t_out, labels, task, alpha, beta, gamma, T, s_out=None, mmd=False):
+def get_loss(t_out, labels, task, alpha, beta, gamma, T, non_improve_list, task_weight, exp = None, s_out=None, mmd=False):
     cce_loss = tf.keras.losses.CategoricalCrossentropy()
     bce_loss = tf.keras.losses.BinaryCrossentropy()
     softmax = Softmax()
@@ -137,23 +137,34 @@ def get_loss(t_out, labels, task, alpha, beta, gamma, T, s_out=None, mmd=False):
         s_f, s_va, s_expr, s_au = s_out
         t_expr = softmax(t_expr/T)
         s_expr = softmax(s_expr/T)
+        task_weight_dict = {'VA':1, 'EXPR':1,'AU':1,'MTL':1}
+        if task_weight:
+            task_weight_dict = {}
+            for key in non_improve_list:
+                task_weight_dict[key] = np.exp(exp * non_improve_list[key])
+
+
         if task == 'VA':
-            loss = alpha * loss_ccc(s_va, labels) + loss_ccc(s_va, t_va) + \
-                   beta * (cce_loss(t_expr, s_expr) + bce_loss(t_au, s_au))
+            loss = alpha * task_weight_dict['VA'] * loss_ccc(s_va, labels) + task_weight_dict['VA']*loss_ccc(s_va, t_va) + \
+                   beta * (task_weight_dict['EXPR'] * cce_loss(t_expr, s_expr) + task_weight_dict['AU']*bce_loss(t_au, s_au))
         elif task == 'EXPR':
-            loss = alpha * cce_loss(s_expr, labels) + cce_loss(s_expr, t_expr) + \
-                   beta * (loss_ccc(s_va, t_va) + bce_loss(t_au, s_au))
+            loss = alpha * task_weight_dict['EXPR'] * cce_loss(s_expr, labels) + task_weight_dict['EXPR'] * cce_loss(s_expr, t_expr) + \
+                   beta * (task_weight_dict['VA'] * loss_ccc(s_va, t_va) + task_weight_dict['AU'] * bce_loss(t_au, s_au))
         elif task == 'AU':
-            loss = alpha * bce_loss(s_au, labels) + bce_loss(s_au, t_au) + \
-                    beta * (loss_ccc(s_va, t_va) + cce_loss(s_expr, t_expr))
+            loss = alpha * task_weight_dict['AU'] * bce_loss(s_au, labels) + task_weight_dict['AU'] * bce_loss(s_au, t_au) + \
+                    beta * (task_weight_dict['VA'] * loss_ccc(s_va, t_va) + task_weight_dict['EXPR'] * cce_loss(s_expr, t_expr))
+
         elif task == 'MTL':
             label = np.stack([np.hstack(x) for x in labels])
             va_l = label[:, 0:2]
             expr_l = label[:, 2:10]
             au_l = label[:, 10:]
-            loss = loss_ccc(s_va, va_l) + cce_loss(s_expr, expr_l) +  bce_loss(s_au, au_l)
-        else:
-            raise ValueError(f"Task {task} is not valid!")
+            loss = task_weight_dict['VA'] * loss_ccc(s_va, va_l) + task_weight_dict['EXPR'] * cce_loss(s_expr, expr_l) + task_weight_dict['AU'] * bce_loss(s_au, au_l)
+        # else:
+        #     va_loss = alpha * loss_ccc(s_va, labels) + loss_ccc(s_va, t_va) if task == 'VA' else loss_ccc(s_va, t_va)
+        #     expr_loss = alpha * cce_loss(s_expr, labels) + cce_loss(s_expr, t_expr) if task == 'EXPR' else cce_loss(
+        #         s_expr, t_expr)
+        #     au_loss = alpha * bce_loss(s_au, labels) + bce_loss(s_au, t_au) if task == 'AU' else bce_loss(t_au, s_au)
         if mmd:
             loss += gamma * mmd(t_f, s_f)
 

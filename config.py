@@ -1,10 +1,7 @@
 configs = {
     'stride':10,
     'time_window':2,
-    # 232
-    'data_path':'/home/euiseokjeong/Desktop/IMLAB/ABAW/data/2022',
-    # imlab server
-    #'data_path': '/home/euiseokjeong/Desktop/imlab/2022_ABAW_imlab/data/2022',
+    'data_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/data/2022',
     'limit_gpu':1024*3,
     'epochs':20,
     'batch_size':256,
@@ -15,11 +12,13 @@ configs = {
     'temperature':1.5,
     'early_stop':5,
     'generation':1,
-    'alpha':3,
-    'beta':0.5,
+    'alpha':1.5,
+    'beta':1,
     'gamma':1,
     'au_threshold':0.5,
     'learning_rate':0.0001,
     'gpu_num':0,
-    'eval_path':'/home/euiseokjeong/Desktop/IMLAB/ABAW/NAS/2022/result/2022_3_17_18_59_52'
+    'task_weight_exp':'as',
+    'task_weight_flag':False,
+    'eval_path':'/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_18_15_32_5'
 }
