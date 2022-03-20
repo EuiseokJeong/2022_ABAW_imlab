@@ -25,7 +25,7 @@ class Trainer():
         self.task_weight_exp = configs['task_weight_exp']
         self.task_weight = configs['task_weight_flag']
         self.domain_weight = configs['domain_weight']
-        self.linear_factor = configs['linear_factor']
+        self.exp_domain_weight = configs['exp_domain_weight']
         # self.t_train_loss, self.s_train_loss, self.t_valid_loss, self.s_valid_loss, self.t_valid_metric, self.s_valid_metric = [],[],[],[],[],[]
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=configs['learning_rate'])
         self.train_dataloader = dataloader(type='train', batch_size=configs['batch_size'], configs=configs)
@@ -171,15 +171,14 @@ class Trainer():
         train_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         iter = dataloader.max_iter
         st_time = time.time()
-        epoch = 10
-        epo_domain_weight = np.exp((epoch - self.epochs + 1) / (self.epochs / 4)) if self.linear_factor else self.domain_weight
+        epo_domain_weight = np.exp((epoch - self.epochs + 1) / (self.epochs / 4)) if self.exp_domain_weight else self.domain_weight
 
         T = 1 if self.gen_cnt == 0 else self.T
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
 
-            if i == 10:
-                break
+            # if i == 10:
+            #     break
 
 
             loss = 0
@@ -206,7 +205,7 @@ class Trainer():
                     self.optimizer.apply_gradients(zip(gradient, self.student.trainable_variables))
 
             loss_list.append(float(loss))
-            print('\r',f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || train_loss: {float(np.mean(loss_list)):.2f} "
+            print('\r',f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || domain_weight: {epo_domain_weight:.2f} train_loss: {float(np.mean(loss_list)):.2f} "
                        f"train_metric(VA/EXPR/AU/MTL/domain): {float(np.mean(train_metric['VA'])):.2f}/{float(np.mean(train_metric['EXPR'])):.2f}/{float(np.mean(train_metric['AU'])):.2f}/{float(np.mean(train_metric['MTL'])):.2f}/{float(np.mean(train_metric['domain'])):.2f} {time.time() - st_time:.2f}sec({(i + 1)/(time.time() - st_time):.2f}it/s)s", end = '')
         for key in train_loss.keys():
             train_loss[key] = [float(np.mean(train_loss[key]))]
@@ -225,8 +224,8 @@ class Trainer():
         valid_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         for i, data in enumerate(dataloader):
 
-            if i == 10:
-                break
+            # if i == 10:
+            #     break
 
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
