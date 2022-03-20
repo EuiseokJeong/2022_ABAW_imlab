@@ -177,6 +177,7 @@ class Trainer():
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
 
+
             # if i == 10:
             #     break
 
