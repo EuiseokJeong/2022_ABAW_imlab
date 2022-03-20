@@ -35,5 +35,6 @@ configs = {
      # domain adaptation
     'domain_weight':1,
     'adaptation_factor':1,
-    'exp_domain_weight':True
+    'exp_domain_weight':True,
+    'branch_test':1
 }
