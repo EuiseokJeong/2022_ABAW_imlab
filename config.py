@@ -25,6 +25,5 @@ configs = {
     'gpu_num':0,
     'task_weight_exp':'as',
     'task_weight_flag':False,
-    'eval_path':'/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_18_15_32_5',
-    'branch test':1
+    'eval_path':'/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_18_15_32_5'
 }
