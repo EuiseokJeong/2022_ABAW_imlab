@@ -25,5 +25,9 @@ configs = {
     'gpu_num':0,
     'task_weight_exp':'as',
     'task_weight_flag':False,
-    'eval_path':'/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_18_15_32_5'
+    'eval_path':'/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_18_15_32_5',
+
+     # domain adaptation
+    'domain_layers':[256,128],
+    'domain_weight':1
 }
