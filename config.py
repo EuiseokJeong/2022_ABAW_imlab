@@ -19,21 +19,21 @@ configs = {
     'classifier_layers': [256,128],
     'domain_layers': [256, 128],
     'lstm_num': 512,
-    'dropout_rate':0.2,
+    'dropout_rate':0.5,
 
     # hyper parametre
-    'temperature':1.5,
-    'alpha':1.5,
-    'beta':1,
+    'temperature':2.5,
+    'alpha':10,
+    'beta':0.9,
     'gamma':1,
     'au_threshold':0.5,
 
     # task_weight
-    'task_weight_exp':'as',
-    'task_weight_flag':False,
+    'task_weight_exp':0.5,
+    'task_weight_flag':True,
 
      # domain adaptation
-    'domain_weight':1,
+    'domain_weight':0,
     'adaptation_factor':1,
-    'exp_domain_weight':True
+    'exp_domain_weight':False
 }

@@ -177,8 +177,8 @@ class Trainer():
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
 
-            # if i == 10:
-            #     break
+            if i == 10:
+                break
 
 
             loss = 0
@@ -187,7 +187,8 @@ class Trainer():
                 with tf.GradientTape() as tape:
                     s_out = self.student([images, audios], training=True) if self.gen_cnt != 0 else None
                     t_out = self.teacher([images, audios], training=t_training)
-                    task_loss = get_loss(t_out, labels, task, self.alpha, epo_domain_weight, self.gamma, T, self.non_improve_list, self.task_weight, exp=self.task_weight_exp, s_out=s_out)
+                    task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, epo_domain_weight, T, self.non_improve_list, self.task_weight, exp=self.task_weight_exp, s_out=s_out)
+                    #t_out, labels, task, alpha, beta, domain_weight, T, non_improve_list, task_weight, exp = None, s_out = None, mmd = False
                 task_metric, domain_metric = get_metric(t_out, labels, task, self.threshold) if self.gen_cnt == 0 else get_metric(s_out, labels, task, self.threshold)
                 if task_metric == 'nan':
                     continue

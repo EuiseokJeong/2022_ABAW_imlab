@@ -127,7 +127,7 @@ def check_weight(src_model, target_model):
     for src_weight, target_weight in zip(src_weights, target_weights):
         assert (src_weight == target_weight).all()
 
-def get_loss(t_out, labels, task, alpha, beta, domain_weight, T, non_improve_list, task_weight, exp = None, s_out=None, mmd=False):
+def get_loss(t_out, labels, task, alpha, beta, domain_weight, T, non_improve_list, task_weight, exp = None, s_out=None):
     cce_loss = tf.keras.losses.CategoricalCrossentropy()
     bce_loss = tf.keras.losses.BinaryCrossentropy()
     softmax = Softmax()
