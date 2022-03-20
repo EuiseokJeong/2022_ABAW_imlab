@@ -22,9 +22,9 @@ configs = {
     'dropout_rate':0.2,
 
     # hyper parametre
-    'temperature':2.5,
+    'temperature':1.5,
     'alpha':1.5,
-    'beta':0.5,
+    'beta':1,
     'gamma':1,
     'au_threshold':0.5,
 
@@ -33,6 +33,7 @@ configs = {
     'task_weight_flag':False,
 
      # domain adaptation
-    'domain_weight':0.5,
-    'adaptation_factor':1
+    'domain_weight':1,
+    'adaptation_factor':1,
+    'linear_factor':True
 }

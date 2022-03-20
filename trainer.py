@@ -25,6 +25,7 @@ class Trainer():
         self.task_weight_exp = configs['task_weight_exp']
         self.task_weight = configs['task_weight_flag']
         self.domain_weight = configs['domain_weight']
+        self.linear_factor = configs['linear_factor']
         # self.t_train_loss, self.s_train_loss, self.t_valid_loss, self.s_valid_loss, self.t_valid_metric, self.s_valid_metric = [],[],[],[],[],[]
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=configs['learning_rate'])
         self.train_dataloader = dataloader(type='train', batch_size=configs['batch_size'], configs=configs)
@@ -170,6 +171,9 @@ class Trainer():
         train_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         iter = dataloader.max_iter
         st_time = time.time()
+        epoch = 10
+        epo_domain_weight = np.exp((epoch - self.epochs + 1) / (self.epochs / 4)) if self.linear_factor else self.domain_weight
+
         T = 1 if self.gen_cnt == 0 else self.T
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
@@ -184,7 +188,7 @@ class Trainer():
                 with tf.GradientTape() as tape:
                     s_out = self.student([images, audios], training=True) if self.gen_cnt != 0 else None
                     t_out = self.teacher([images, audios], training=t_training)
-                    task_loss = get_loss(t_out, labels, task, self.alpha, self.domain_weight, self.gamma, T, self.non_improve_list, self.task_weight, exp=self.task_weight_exp, s_out=s_out)
+                    task_loss = get_loss(t_out, labels, task, self.alpha, epo_domain_weight, self.gamma, T, self.non_improve_list, self.task_weight, exp=self.task_weight_exp, s_out=s_out)
                 task_metric, domain_metric = get_metric(t_out, labels, task, self.threshold) if self.gen_cnt == 0 else get_metric(s_out, labels, task, self.threshold)
                 if task_metric == 'nan':
                     continue
