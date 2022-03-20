@@ -24,6 +24,7 @@ class Trainer():
         self.threshold = configs['au_threshold']
         self.task_weight_exp = configs['task_weight_exp']
         self.task_weight = configs['task_weight_flag']
+        self.domain_weight = configs['domain_weight']
         # self.t_train_loss, self.s_train_loss, self.t_valid_loss, self.s_valid_loss, self.t_valid_metric, self.s_valid_metric = [],[],[],[],[],[]
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=configs['learning_rate'])
         self.train_dataloader = dataloader(type='train', batch_size=configs['batch_size'], configs=configs)
@@ -66,8 +67,8 @@ class Trainer():
 
     def init_dict(self):
         self.train_loss_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
-        self.train_metric_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': []}
-        self.valid_metric_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
+        self.train_metric_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': [],'domain':[]}
+        self.valid_metric_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[], 'domain':[]}
         self.valid_loss_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         self.non_improve_list = {'VA': 0, 'EXPR': 0, 'AU': 0, 'MTL':0}
         self.task_best_valid = {'VA': 0, 'EXPR': 0, 'AU': 0, 'MTL': 0}
@@ -128,6 +129,8 @@ class Trainer():
             self.write_result(valid_metric_dict, epoch)
             if epoch > 0:
                 for key in valid_metric_dict:
+                    if key == 'domain':
+                        continue
                     if valid_metric_dict[key][0] > max(self.valid_metric_dict[key]):
                         self.non_improve_list[key] = 0
                     else:
@@ -163,7 +166,7 @@ class Trainer():
 
     def train_epoch(self, dataloader, epoch):
         loss_list = []
-        train_metric = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': []}
+        train_metric = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': [], 'domain':[]}
         train_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         iter = dataloader.max_iter
         st_time = time.time()
@@ -171,36 +174,39 @@ class Trainer():
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
 
-            # if i == 10:
-            #     break
+            if i == 10:
+                break
 
-            with tf.GradientTape() as tape:
-                loss = 0
-                for task_data in data:
-                    vid_names, idxes, images, audios, labels, task = task_data
+
+            loss = 0
+            for task_data in data:
+                vid_names, idxes, images, audios, labels, task = task_data
+                with tf.GradientTape() as tape:
                     s_out = self.student([images, audios], training=True) if self.gen_cnt != 0 else None
                     t_out = self.teacher([images, audios], training=t_training)
-                    task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, self.gamma, T, self.non_improve_list, self.task_weight, exp=self.task_weight_exp, s_out=s_out)
-                    # t_out, labels, task, alpha, beta, gamma, T, non_improve_list, task_weight, exp = None, s_out=None, mmd=False
-                    task_metric = get_metric(t_out, labels, task, self.threshold) if self.gen_cnt == 0 else get_metric(s_out, labels, task, self.threshold)
-                    if task_metric == 'nan':
-                        continue
+                    task_loss = get_loss(t_out, labels, task, self.alpha, self.domain_weight, self.gamma, T, self.non_improve_list, self.task_weight, exp=self.task_weight_exp, s_out=s_out)
+                task_metric, domain_metric = get_metric(t_out, labels, task, self.threshold) if self.gen_cnt == 0 else get_metric(s_out, labels, task, self.threshold)
+                if task_metric == 'nan':
+                    continue
+                loss += task_loss
 
-                    loss += task_loss
-                    train_loss[task].append(float(task_loss))
-                    train_metric[task].append(float(task_metric))
-            if self.gen_cnt == 0:
-                gradient = tape.gradient(loss, self.teacher.trainable_variables)
-                self.optimizer.apply_gradients(zip(gradient, self.teacher.trainable_variables))
-            else:
-                gradient = tape.gradient(loss, self.student.trainable_variables)
-                self.optimizer.apply_gradients(zip(gradient, self.student.trainable_variables))
+                train_loss[task].append(float(task_loss))
+                train_metric[task].append(float(task_metric))
+                if domain_metric != None:
+                    train_metric['domain'].append(float(domain_metric))
+                if self.gen_cnt == 0:
+                    gradient = tape.gradient(task_loss, self.teacher.trainable_variables)
+                    self.optimizer.apply_gradients(zip(gradient, self.teacher.trainable_variables))
+                else:
+                    gradient = tape.gradient(task_loss, self.student.trainable_variables)
+                    self.optimizer.apply_gradients(zip(gradient, self.student.trainable_variables))
 
             loss_list.append(float(loss))
             print('\r',f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || train_loss: {float(np.mean(loss_list)):.2f} "
-                       f"train_metric(VA/EXPR/AU/MTL): {float(np.mean(train_metric['VA'])):.2f}/{float(np.mean(train_metric['EXPR'])):.2f}/{float(np.mean(train_metric['AU'])):.2f}/{float(np.mean(train_metric['MTL'])):.2f} {time.time() - st_time:.2f}sec({(i + 1)/(time.time() - st_time):.2f}it/s)s", end = '')
+                       f"train_metric(VA/EXPR/AU/MTL/domain): {float(np.mean(train_metric['VA'])):.2f}/{float(np.mean(train_metric['EXPR'])):.2f}/{float(np.mean(train_metric['AU'])):.2f}/{float(np.mean(train_metric['MTL'])):.2f}/{float(np.mean(train_metric['domain'])):.2f} {time.time() - st_time:.2f}sec({(i + 1)/(time.time() - st_time):.2f}it/s)s", end = '')
         for key in train_loss.keys():
             train_loss[key] = [float(np.mean(train_loss[key]))]
+        for key in train_metric.keys():
             train_metric[key] = [float(np.mean(train_metric[key]))]
 
         return train_loss, train_metric
@@ -211,21 +217,23 @@ class Trainer():
         iter = dataloader.max_iter
         dataloader.shuffle()
         st_time = time.time()
-        valid_metric = {'VA': [], 'EXPR':[], 'AU':[], 'MTL':[]}
+        valid_metric = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': [], 'domain':[]}
         valid_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         for i, data in enumerate(dataloader):
 
-            # if i == 10:
-            #     break
+            if i == 10:
+                break
 
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
                 out = model([images, audios], training=False)
-                valid_loss[task].append(float(get_loss(out, labels, task, self.alpha, self.beta, self.gamma, 1, self.non_improve_list, task_weight, exp = self.task_weight_exp)))
-                task_metric = get_metric(out, labels, task, self.threshold)
+                valid_loss[task].append(float(get_loss(out, labels, task, self.alpha, self.beta, self.domain_weight, 1, self.non_improve_list, self.task_weight, exp = self.task_weight_exp)))
+                task_metric, domain_metric = get_metric(out, labels, task, self.threshold)
                 if task_metric == 'nan':
                     continue
                 valid_metric[task].append(task_metric)
+                if domain_metric != None:
+                    valid_metric['domain'].append(float(domain_metric))
                 print('\r', f"      ({i + 1:0>5}/{iter:0>5}) Validation gen_{self.gen_cnt} model || valid_metric(VA/EXPR/AU/MTL): {float(np.mean(valid_metric['VA'])):.2f}/{float(np.mean(valid_metric['EXPR'])):.2f}/{float(np.mean(valid_metric['AU'])):.2f}/{float(np.mean(valid_metric['MTL'])):.2f} time: {time.time() - st_time:.2f}sec({(i + 1)/(time.time() - st_time):.2f}it/s)", end = '')
         for key in valid_loss.keys():
             valid_loss[key] = [float(np.mean(valid_loss[key]))]

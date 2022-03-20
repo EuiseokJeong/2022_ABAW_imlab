@@ -14,12 +14,12 @@ def get_model(configs):
     adaptation_factor = configs['adaptation_factor']
 
     class dense_module(tf.keras.Model):
-        def __init__(self, layer_num, activation, drop_rate=0):
+        def __init__(self, layer_num, activation, name, drop_rate=0):
             super(dense_module, self).__init__()
-            self.dense = Dense(layer_num)
-            self.bn = BatchNormalization()
+            self.dense = Dense(layer_num, name=f"{name}_dense")
+            self.bn = BatchNormalization(name=f"{name}_batch")
             self.activation = activation
-            self.dropout = Dropout(dropout_rate)
+            self.dropout = Dropout(drop_rate,name=f"{name}_dropout")
 
         def call(self, x):
             h = self.dense(x)
@@ -45,41 +45,41 @@ def get_model(configs):
 
     # feature extractor
     img_feature = Reshape((6, 512))(img_input)
-    img_feature = LSTM(lstm_num, activation='relu', dtype='float32', name='img_lstm')(img_feature)
+    img_feature = LSTM(lstm_num, activation='relu', dtype='float32', name=f'img_lstm_{lstm_num}')(img_feature)
     h = Concatenate()([img_feature, audio_input])
 
     for i in FE_layers:
-        h = dense_module(i, swish, drop_rate=configs['dropout_rate'])(h)
+        h = dense_module(i, swish, drop_rate=dropout_rate, name=f"FE_{i}")(h)
 
     # domain classifier
     domain_h = GradReverse()(h)
     for i in domain_layers:
-        domain_h = dense_module(i, swish)(domain_h)
+        domain_h = dense_module(i, swish, name=f"DC_{i}")(domain_h)
     domain_h = Dense(3)(domain_h)
     domain_out = softmax(domain_h)
 
     # va classifier
     va_h = h
     for i in classifier_layers:
-        va_h = dense_module(i, swish)(va_h)
+        va_h = dense_module(i, swish, name=f"VA_{i}")(va_h)
     va_h = Dense(2)(va_h)
     va_out = tanh(va_h)
 
     # expr classifier
     erxpr_h = h
     for i in classifier_layers:
-        erxpr_h = dense_module(i, swish)(erxpr_h)
+        erxpr_h = dense_module(i, swish, name=f"EXPR_{i}")(erxpr_h)
     expr_h = Dense(8)(erxpr_h)
 
     # au classifier
     au_h = h
     for i in classifier_layers:
-        au_h = dense_module(i, swish)(au_h)
+        au_h = dense_module(i, swish, name=f"AU_{i}")(au_h)
     au_h = Dense(12)(au_h)
     au_out = sigmoid(au_h)
 
     input_list = [img_input, audio_input]
-    output_list = [va_out, expr_h, au_out, domain_out]
+    output_list = [domain_out,va_out, expr_h, au_out]
 
     model = tf.keras.Model(
         inputs=input_list,
