@@ -44,7 +44,7 @@ class tester():
                     out = test_model((images, audios), training=False)
                     # valid_loss[task].append(float(get_loss(out, labels, task, self.alpha, self.beta, self.gamma, 1)))
                     # valid_metric[task].append((get_metric(out, labels, task)))
-                    task_metric = get_metric(out, labels, task, threshold)
+                    task_metric,_ = get_metric(out, labels, task, threshold)
                     if task_metric == 'nan':
                         continue
                     valid_metric[task].append(task_metric)
