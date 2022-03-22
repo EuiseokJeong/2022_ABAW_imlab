@@ -174,13 +174,13 @@ class Trainer():
         train_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         iter = dataloader.max_iter
         st_time = time.time()
-        epo_domain_weight = np.exp((epoch - self.epochs + 1) / (self.epochs / 4)) if self.linear_domain_weight else self.domain_weight
+        epo_domain_weight = (epoch + 1) / self.epochs if self.linear_domain_weight else self.domain_weight
 
         T = 1 if self.gen_cnt == 0 else self.T
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
-            # if i == 10:
-            #     break
+            if i == 5:
+                break
             loss = 0
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
@@ -230,8 +230,8 @@ class Trainer():
                         'MTL/AU': []}
         valid_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         for i, data in enumerate(dataloader):
-            # if i == 10:
-            #     break
+            if i == 5:
+                break
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
                 out = model([images, audios], training=False)
