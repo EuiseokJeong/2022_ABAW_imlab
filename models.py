@@ -54,7 +54,7 @@ def get_model(configs):
     # domain classifier
     domain_h = GradReverse()(h)
     for i in domain_layers:
-        domain_h = dense_module(i, swish, name=f"DC_{i}")(domain_h)
+        domain_h = dense_module(i, swish, drop_rate=dropout_rate, name=f"DC_{i}")(domain_h)
     domain_h = Dense(3)(domain_h)
     domain_out = softmax(domain_h)
 
