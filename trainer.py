@@ -25,7 +25,7 @@ class Trainer():
         self.task_weight_exp = configs['task_weight_exp']
         self.task_weight = configs['task_weight_flag']
         self.domain_weight = configs['domain_weight']
-        self.exp_domain_weight = configs['exp_domain_weight']
+        self.linear_domain_weight = configs['linear_domain_weight']
         # self.t_train_loss, self.s_train_loss, self.t_valid_loss, self.s_valid_loss, self.t_valid_metric, self.s_valid_metric = [],[],[],[],[],[]
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=configs['learning_rate'])
         self.train_dataloader = dataloader(type='train', batch_size=configs['batch_size'], configs=configs)
@@ -173,7 +173,7 @@ class Trainer():
         st_time = time.time()
 
         if self.domain_weight != 0:
-            epo_domain_weight = (epoch + 1)/self.epochs if self.exp_domain_weight else self.domain_weight
+            epo_domain_weight = (epoch + 1)/self.epochs if self.linear_domain_weight else self.domain_weight
         else:
             epo_domain_weight = self.domain_weight
 
