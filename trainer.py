@@ -179,8 +179,8 @@ class Trainer():
         T = 1 if self.gen_cnt == 0 else self.T
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
-            if i == 5:
-                break
+            # if i == 5:
+            #     break
             loss = 0
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
@@ -230,8 +230,8 @@ class Trainer():
                         'MTL/AU': []}
         valid_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         for i, data in enumerate(dataloader):
-            if i == 5:
-                break
+            # if i == 5:
+            #     break
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
                 out = model([images, audios], training=False)
