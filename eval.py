@@ -25,7 +25,7 @@ class tester():
     #     model = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/ABAW/result/2022_3_2_21_55_32/weight/epoch(10)model_gen_0')
     #     # /home/euiseokjeong/Desktop/IMLAB/ABAW/result/2022_3_2_21_55_32/weight/epoch(10)model_gen_0
     #     return model
-    def valid(self, only_mtl=False):
+    def valid(self):
         valid_dataloader = dataloader(type='valid', batch_size=self.configs['batch_size'], configs=self.configs)
         valid_dataloader.shuffle()
         iter = valid_dataloader.max_iter
@@ -36,14 +36,11 @@ class tester():
         result_list = [f'model, VA, EXPR, AU, MTL, MTL/VA, MTL/EXPR, MTL/AU']
         for j, model_name in enumerate(model_list):
             st_time = time.time()
-            valid_metric = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': [], 'MTL/VA': [], 'MTL/EXPR': [], 'MTL/AU': []} if not only_mtl else{'VA': [0], 'EXPR': [0], 'AU': [0], 'MTL': [], 'MTL/VA': [], 'MTL/EXPR': [], 'MTL/AU': []}
+            valid_metric = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': [], 'MTL/VA': [], 'MTL/EXPR': [], 'MTL/AU': []}
             test_model = tf.keras.models.load_model(os.path.join(weight_path, model_name))
             for i, data in enumerate(valid_dataloader):
                 for task_data in data:
                     vid_names, idxes, images, audios, labels, task = task_data
-                    if only_mtl:
-                        if task != 'MTL':
-                            continue
                     out = test_model((images, audios), training=False)
                     # valid_loss[task].append(float(get_loss(out, labels, task, self.alpha, self.beta, self.gamma, 1)))
                     # valid_metric[task].append((get_metric(out, labels, task)))
@@ -146,4 +143,4 @@ if __name__ == '__main__':
     print(f"\nresult_path: {configs['eval_path']}\n")
     tester = tester(configs)
     # tester.write_submit(testset_list)
-    tester.valid(only_mtl=False)
+    tester.valid()

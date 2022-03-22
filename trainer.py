@@ -14,8 +14,8 @@ import pandas as pd
 
 class Trainer():
     def __init__(self, configs):
-        policy = mixed_precision.Policy('mixed_float16')
-        mixed_precision.set_policy(policy)
+        # policy = mixed_precision.Policy('mixed_float16')
+        # mixed_precision.set_policy(policy)
         self.configs = configs
         self.gen_cnt = 0
         self.alpha = configs['alpha']
@@ -30,8 +30,8 @@ class Trainer():
         self.domain_weight = configs['domain_weight']
         self.linear_domain_weight = configs['linear_domain_weight']
         # self.t_train_loss, self.s_train_loss, self.t_valid_loss, self.s_valid_loss, self.t_valid_metric, self.s_valid_metric = [],[],[],[],[],[]
-        optimizer = tf.keras.optimizers.Adam(learning_rate=configs['learning_rate'])
-        self.optimizer = mixed_precision.LossScaleOptimizer(optimizer, loss_scale='dynamic')
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=configs['learning_rate'])
+        # self.optimizer = mixed_precision.LossScaleOptimizer(optimizer, loss_scale='dynamic')
         self.train_dataloader = dataloader(type='train', batch_size=configs['batch_size'], configs=configs)
         self.valid_dataloader = dataloader(type='valid', batch_size=configs['batch_size'], configs=configs)
         self.set_result_path()
@@ -100,7 +100,6 @@ class Trainer():
         f.close()
 
     def save_weights(self,epoch):
-        path = os.path.join(self.weight_path, f'best_weight_gen_{self.gen_cnt}.h5')
         if self.gen_cnt == 0:
             self.teacher.save_weights(os.path.join(self.weight_path, f'best_weight_gen_{self.gen_cnt}.h5'), save_format='h5')
             self.teacher.save(os.path.join(self.weight_path, f'epoch({epoch+1})model_gen_{self.gen_cnt}'))
@@ -134,7 +133,7 @@ class Trainer():
             self.write_result(valid_metric_dict, epoch)
             if epoch > 0:
                 for key in valid_metric_dict:
-                    if key == 'domain':
+                    if key in  ['domain','MTL/VA','MTL/EXPR','MTL/AU', 'MTL']:
                         continue
                     if valid_metric_dict[key][0] > max(self.valid_metric_dict[key]):
                         self.non_improve_list[key] = 0
@@ -175,21 +174,13 @@ class Trainer():
         train_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         iter = dataloader.max_iter
         st_time = time.time()
-
-        if self.domain_weight != 0:
-            epo_domain_weight = (epoch + 1)/self.epochs if self.linear_domain_weight else self.domain_weight
-        else:
-            epo_domain_weight = self.domain_weight
+        epo_domain_weight = np.exp((epoch - self.epochs + 1) / (self.epochs / 4)) if self.linear_domain_weight else self.domain_weight
 
         T = 1 if self.gen_cnt == 0 else self.T
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
-
-
             # if i == 10:
             #     break
-
-
             loss = 0
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
@@ -197,7 +188,7 @@ class Trainer():
                     s_out = self.student([images, audios], training=True) if self.gen_cnt != 0 else None
                     t_out = self.teacher([images, audios], training=t_training)
                     task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, epo_domain_weight, T, self.non_improve_list, self.task_weight, exp=self.task_weight_exp, s_out=s_out)
-                    scaled_loss = self.optimizer.get_scaled_loss(task_loss)
+                    # scaled_loss = self.optimizer.get_scaled_loss(task_loss)
                     #t_out, labels, task, alpha, beta, domain_weight, T, non_improve_list, task_weight, exp = None, s_out = None, mmd = False
                 task_metric, domain_metric = get_metric(t_out, labels, task, self.threshold) if self.gen_cnt == 0 else get_metric(s_out, labels, task, self.threshold)
                 if task_metric == 'nan':
@@ -209,13 +200,14 @@ class Trainer():
                 if domain_metric != None:
                     train_metric['domain'].append(float(domain_metric))
                 if self.gen_cnt == 0:
-                    scaled_gradients = tape.gradient(scaled_loss, self.teacher.trainable_variables)
-                    gradient = self.optimizer.get_unscaled_gradients(scaled_gradients)
+                    # scaled_gradients = tape.gradient(scaled_loss, self.teacher.trainable_variables)
+                    # gradient = self.optimizer.get_unscaled_gradients(scaled_gradients)
+                    gradient = tape.gradient(task_loss, self.teacher.trainable_variables)
                     self.optimizer.apply_gradients(zip(gradient, self.teacher.trainable_variables))
                 else:
-                    scaled_gradients = tape.gradient(scaled_loss, self.student.trainable_variables)
-                    gradient = self.optimizer.get_unscaled_gradients(scaled_gradients)
-                    # gradient = tape.gradient(task_loss, self.student.trainable_variables)
+                    # scaled_gradients = tape.gradient(scaled_loss, self.student.trainable_variables)
+                    # gradient = self.optimizer.get_unscaled_gradients(scaled_gradients)
+                    gradient = tape.gradient(task_loss, self.student.trainable_variables)
                     self.optimizer.apply_gradients(zip(gradient, self.student.trainable_variables))
 
             loss_list.append(float(loss))
@@ -234,24 +226,32 @@ class Trainer():
         iter = dataloader.max_iter
         dataloader.shuffle()
         st_time = time.time()
-        valid_metric = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': [], 'domain':[]}
+        valid_metric = {'domain':[],'VA': [], 'EXPR': [], 'AU': [], 'MTL': [], 'MTL/VA': [], 'MTL/EXPR': [],
+                        'MTL/AU': []}
         valid_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         for i, data in enumerate(dataloader):
-
             # if i == 10:
             #     break
-
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
                 out = model([images, audios], training=False)
                 valid_loss[task].append(float(get_loss(out, labels, task, self.alpha, self.beta, self.domain_weight, 1, self.non_improve_list, self.task_weight, exp = self.task_weight_exp)))
-                task_metric, domain_metric = get_metric(out, labels, task, self.threshold)
+                task_metric, domain_metric = get_metric(out, labels, task, self.threshold, get_per_task=True)
+
+                if task == 'MTL':
+                    mtl_total, mtl_va, mtl_expr, mtl_au = task_metric
+                    valid_metric['MTL'].append(mtl_total)
+                    valid_metric['MTL/VA'].append(mtl_va)
+                    valid_metric['MTL/EXPR'].append(mtl_expr)
+                    valid_metric['MTL/AU'].append(mtl_au)
+                else:
+                    valid_metric[task].append(task_metric)
+
                 if task_metric == 'nan':
                     continue
-                valid_metric[task].append(task_metric)
                 if domain_metric != None:
                     valid_metric['domain'].append(float(domain_metric))
-                print('\r', f"      ({i + 1:0>5}/{iter:0>5}) Validation gen_{self.gen_cnt} model || valid_metric(VA/EXPR/AU/MTL): {float(np.mean(valid_metric['VA'])):.2f}/{float(np.mean(valid_metric['EXPR'])):.2f}/{float(np.mean(valid_metric['AU'])):.2f}/{float(np.mean(valid_metric['MTL'])):.2f} time: {time.time() - st_time:.2f}sec({(i + 1)/(time.time() - st_time):.2f}it/s)", end = '')
+                print('\r', f"      ({i + 1:0>5}/{iter:0>5}) Validation gen_{self.gen_cnt} model || valid_metric(VA/EXPR/AU/MTL_total(va/expr/au)): {float(np.mean(valid_metric['VA'])):.2f}/{float(np.mean(valid_metric['EXPR'])):.2f}/{float(np.mean(valid_metric['AU'])):.2f}/{float(np.mean(valid_metric['MTL'])):.2f}({float(np.mean(valid_metric['MTL/VA'])):.2f}/{float(np.mean(valid_metric['MTL/EXPR'])):.2f}/{float(np.mean(valid_metric['MTL/AU'])):.2f}) time: {time.time() - st_time:.2f}sec({(i + 1)/(time.time() - st_time):.2f}it/s)", end = '')
         for key in valid_loss.keys():
             valid_loss[key] = [float(np.mean(valid_loss[key]))]
         for key in valid_metric.keys():
@@ -262,11 +262,11 @@ class Trainer():
         print(self.weight_path, self.configs, '\n')
         self.refresh_path()
 
-        self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/keep/generation/2022_3_5_21_44_27(teacher_gen_0)/weight/epoch(28)model_gen_0')
+        # self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/keep/generation/2022_3_5_21_44_27(teacher_gen_0)/weight/epoch(28)model_gen_0')
 
-        # self.teacher = get_model(self.configs)
+        self.teacher = get_model(self.configs)
         tf.keras.utils.plot_model(self.teacher, to_file=os.path.join(self.time_path, 'model.png'), show_shapes=True)
-        # self.train_gen()
+        self.train_gen()
 
         for i in range(self.gen):
             self.gen_cnt += 1
@@ -280,10 +280,3 @@ if __name__=='__main__':
     silence_tensorflow()
     warnings.filterwarnings(action='ignore')
     Trainer(configs).train()
-
-    # trainer = Trainer(configs)
-    # test_model = get_model(configs)
-    # test_model(np.zeros((1,6,1,512)), np.zeros((1,1000)))
-    # print('/home/euiseokjeong/Desktop/IMLAB/ABAW/result/keep/teacher_test/2022_2_25_20_22_32/weight/best_weight_gen_0.h5')
-    # test_model.load_weights('/home/euiseokjeong/Desktop/IMLAB/ABAW/result/keep/teacher_test/2022_2_25_20_22_32/weight/best_weight_gen_0.h5')
-    # trainer.valid(test_model, trainer.valid_dataloader)
