@@ -171,7 +171,11 @@ class Trainer():
         train_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         iter = dataloader.max_iter
         st_time = time.time()
-        epo_domain_weight = np.exp((epoch - self.epochs + 1) / (self.epochs / 4)) if self.exp_domain_weight else self.domain_weight
+
+        if self.domain_weight != 0:
+            epo_domain_weight = np.exp((epoch - self.epochs + 1) / (self.epochs / 4)) if self.exp_domain_weight else self.domain_weight
+        else:
+            epo_domain_weight = self.domain_weight
 
         T = 1 if self.gen_cnt == 0 else self.T
         t_training = True if self.gen_cnt == 0 else False
