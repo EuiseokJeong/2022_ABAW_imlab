@@ -36,4 +36,5 @@ configs = {
     'domain_weight':0,
     'adaptation_factor':0,
     'exp_domain_weight':False
+    'AMP':0
 }
