@@ -25,7 +25,7 @@ class tester():
     #     model = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/ABAW/result/2022_3_2_21_55_32/weight/epoch(10)model_gen_0')
     #     # /home/euiseokjeong/Desktop/IMLAB/ABAW/result/2022_3_2_21_55_32/weight/epoch(10)model_gen_0
     #     return model
-    def valid(self):
+    def valid(self, only_mtl=False):
         valid_dataloader = dataloader(type='valid', batch_size=self.configs['batch_size'], configs=self.configs)
         valid_dataloader.shuffle()
         iter = valid_dataloader.max_iter
@@ -33,23 +33,34 @@ class tester():
         model_list = [x for x in os.listdir(weight_path) if len(x.split('.')) == 1]
         threshold = self.configs['au_threshold']
         assert len(model_list) != 0, f"weight_name is zero ({len(model_list)})"
-        result_list = [f'model, VA, EXPR, AU, MTL']
+        result_list = [f'model, VA, EXPR, AU, MTL, MTL/VA, MTL/EXPR, MTL/AU']
         for j, model_name in enumerate(model_list):
             st_time = time.time()
-            valid_metric = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': []}
+            valid_metric = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': [], 'MTL/VA': [], 'MTL/EXPR': [], 'MTL/AU': []} if not only_mtl else{'VA': [0], 'EXPR': [0], 'AU': [0], 'MTL': [], 'MTL/VA': [], 'MTL/EXPR': [], 'MTL/AU': []}
             test_model = tf.keras.models.load_model(os.path.join(weight_path, model_name))
             for i, data in enumerate(valid_dataloader):
                 for task_data in data:
                     vid_names, idxes, images, audios, labels, task = task_data
+                    if only_mtl:
+                        if task != 'MTL':
+                            continue
                     out = test_model((images, audios), training=False)
                     # valid_loss[task].append(float(get_loss(out, labels, task, self.alpha, self.beta, self.gamma, 1)))
                     # valid_metric[task].append((get_metric(out, labels, task)))
-                    task_metric,_ = get_metric(out, labels, task, threshold)
+                    task_metric,_ = get_metric(out, labels, task, threshold, get_per_task=True)
+                    if task == 'MTL':
+                        mtl_total, mtl_va, mtl_expr, mtl_au = task_metric
+                        valid_metric['MTL'].append(mtl_total)
+                        valid_metric['MTL/VA'].append(mtl_va)
+                        valid_metric['MTL/EXPR'].append(mtl_expr)
+                        valid_metric['MTL/AU'].append(mtl_au)
+                    else:
+                        valid_metric[task].append(task_metric)
                     if task_metric == 'nan':
                         continue
-                    valid_metric[task].append(task_metric)
+
                     # valid_metric: {float(np.mean(valid_metric)):.2f}
-                    print('\r',f"[INFO] Validating model: ({j+1}/{len(model_list)}){model_name}, ({i + 1:0>5}/{iter:0>5}) || valid_metric(VA/EXPR/AU/MTL): {float(np.mean(valid_metric['VA'])):.2f}/{float(np.mean(valid_metric['EXPR'])):.2f}/{float(np.mean(valid_metric['AU'])):.2f}/{float(np.mean(valid_metric['MTL'])):.2f} time: {time.time() - st_time:.2f}sec",end='')
+                    print('\r',f"[INFO] Validating model: ({j+1}/{len(model_list)}){model_name}, ({i + 1:0>5}/{iter:0>5}) || valid_metric(VA/EXPR/AU/MTL_total(va/expr/au)): {float(np.mean(valid_metric['VA'])):.2f}/{float(np.mean(valid_metric['EXPR'])):.2f}/{float(np.mean(valid_metric['AU'])):.2f}/{float(np.mean(valid_metric['MTL'])):.2f}({float(np.mean(valid_metric['MTL/VA'])):.2f}/{float(np.mean(valid_metric['MTL/EXPR'])):.2f}/{float(np.mean(valid_metric['MTL/AU'])):.2f}) time: {time.time() - st_time:.2f}sec",end='')
             print()
 
             weight_result = f'{model_name}'
@@ -129,10 +140,10 @@ class tester():
 if __name__ == '__main__':
     silence_tensorflow()
     warnings.filterwarnings(action='ignore')
-    check_and_limit_gpu(1024)
+    check_and_limit_gpu(1024*2)
     # testset_list = ['video95']
 
     print(f"\nresult_path: {configs['eval_path']}\n")
     tester = tester(configs)
     # tester.write_submit(testset_list)
-    tester.valid()
+    tester.valid(only_mtl=False)

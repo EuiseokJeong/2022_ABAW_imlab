@@ -82,7 +82,7 @@ def au_f1_metric(input, target, threshold):
         f1s.append(f1)
     return np.mean(f1s)
 
-def get_metric(out, labels, task, au_threshold):
+def get_metric(out, labels, task, au_threshold, get_per_task=False):
     t_domain, t_va, t_expr, t_au = out
     if task == 'MTL':
         label = np.stack([np.hstack(x) for x in labels])
@@ -94,6 +94,8 @@ def get_metric(out, labels, task, au_threshold):
         mtl_expr = expr_f1_metric(t_expr, expr_l)
         mtl_au = au_f1_metric(t_au, au_l, au_threshold)
         task_metric = mtl_va + mtl_expr + mtl_au
+        if get_per_task:
+            return (task_metric, mtl_va, mtl_expr, mtl_au),None
         return task_metric, None
     elif task == 'VA':
         ccc = metric_CCC(t_va, labels)
