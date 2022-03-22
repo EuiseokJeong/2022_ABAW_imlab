@@ -3,16 +3,18 @@ configs = {
     'stride':10,
     'time_window':2,
     'data_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/data/2022',
-    'limit_gpu':1024*5,
-    'gpu_num': 1,
-    'eval_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_18_15_32_5',
+
+    'limit_gpu':1024*1,
+    'gpu_num': 0,
+    'eval_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_20_2_30_59',
+
 
     # train
     'epochs':20,
     'batch_size':256,
     'early_stop': 5,
-    'generation': 1,
-    'learning_rate': 0.00001,
+    'generation': 5,
+    'learning_rate': 0.0001,
 
     # model
     'feature_extractor_layers':[1024,1024,1024,512,512,512],
@@ -33,8 +35,10 @@ configs = {
     'task_weight_flag':True,
 
      # domain adaptation
-    'domain_weight':1,
-    'adaptation_factor':1,
-    # if True, domain_weight will increase exponentially from zero to domain_weight value you specified
-    'exp_domain_weight':True
+
+
+    'domain_weight':0,
+    'adaptation_factor':0,
+    'exp_domain_weight':False
+
 }
