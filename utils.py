@@ -130,7 +130,7 @@ def check_weight(src_model, target_model):
 def get_loss(t_out, labels, task, alpha, beta, domain_weight, T, non_improve_list, task_weight, exp = None, s_out=None):
     cce_loss = tf.keras.losses.CategoricalCrossentropy()
     bce_loss = tf.keras.losses.BinaryCrossentropy()
-    softmax = Softmax()
+    softmax = Softmax(dtype='float32')
     t_domain, t_va, t_expr, t_au = t_out
     if s_out is not None:
         s_domain, s_va, s_expr, s_au = s_out
@@ -150,6 +150,11 @@ def get_loss(t_out, labels, task, alpha, beta, domain_weight, T, non_improve_lis
             return total_loss
 
         elif task == 'VA':
+            tmp = alpha * task_weight_dict['VA'] * loss_ccc(s_va, labels)
+            tmp2 = task_weight_dict['VA']*loss_ccc(s_va, t_va)
+            tmp3 = beta * (task_weight_dict['EXPR'] * cce_loss(t_expr, s_expr))
+            tmp4 = task_weight_dict['AU']*bce_loss(t_au, s_au)
+            tmp5 = tmp3+tmp4
             task_loss = alpha * task_weight_dict['VA'] * loss_ccc(s_va, labels) + task_weight_dict['VA']*loss_ccc(s_va, t_va) + \
                    beta * (task_weight_dict['EXPR'] * cce_loss(t_expr, s_expr) + task_weight_dict['AU']*bce_loss(t_au, s_au))
         elif task == 'EXPR':
