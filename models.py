@@ -54,29 +54,30 @@ def get_model(configs):
     # domain classifier
     domain_h = GradReverse()(h)
     for i in domain_layers:
-        domain_h = dense_module(i, swish, name=f"DC_{i}")(domain_h)
+        domain_h = dense_module(i, swish, drop_rate=dropout_rate, name=f"DC_{i}")(domain_h)
     domain_h = Dense(3)(domain_h)
-    domain_out = softmax(domain_h)
+    domain_out = Activation('softmax', dtype='float32')(domain_h)
 
     # va classifier
     va_h = h
     for i in classifier_layers:
         va_h = dense_module(i, swish, name=f"VA_{i}")(va_h)
     va_h = Dense(2)(va_h)
-    va_out = tanh(va_h)
+    va_out = Activation('tanh', dtype='float32')(va_h)
 
     # expr classifier
     erxpr_h = h
     for i in classifier_layers:
         erxpr_h = dense_module(i, swish, name=f"EXPR_{i}")(erxpr_h)
-    expr_h = Dense(8)(erxpr_h)
+    expr_h = Dense(8, dtype='float32')(erxpr_h)
 
     # au classifier
     au_h = h
     for i in classifier_layers:
         au_h = dense_module(i, swish, name=f"AU_{i}")(au_h)
     au_h = Dense(12)(au_h)
-    au_out = sigmoid(au_h)
+    au_out = Activation('sigmoid', dtype='float32')(au_h)
+
 
     input_list = [img_input, audio_input]
     output_list = [domain_out,va_out, expr_h, au_out]

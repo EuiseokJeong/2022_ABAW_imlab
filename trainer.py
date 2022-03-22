@@ -4,6 +4,7 @@ from utils import get_metric, get_loss, update_dict, check_dir, save_pickle, che
 from models import get_model
 import time
 from dataloader import dataloader
+from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 import os
 import shutil
@@ -13,6 +14,8 @@ import pandas as pd
 
 class Trainer():
     def __init__(self, configs):
+        policy = mixed_precision.Policy('mixed_float16')
+        mixed_precision.set_policy(policy)
         self.configs = configs
         self.gen_cnt = 0
         self.alpha = configs['alpha']
@@ -27,7 +30,8 @@ class Trainer():
         self.domain_weight = configs['domain_weight']
         self.linear_domain_weight = configs['linear_domain_weight']
         # self.t_train_loss, self.s_train_loss, self.t_valid_loss, self.s_valid_loss, self.t_valid_metric, self.s_valid_metric = [],[],[],[],[],[]
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=configs['learning_rate'])
+        optimizer = tf.keras.optimizers.Adam(learning_rate=configs['learning_rate'])
+        self.optimizer = mixed_precision.LossScaleOptimizer(optimizer, loss_scale='dynamic')
         self.train_dataloader = dataloader(type='train', batch_size=configs['batch_size'], configs=configs)
         self.valid_dataloader = dataloader(type='valid', batch_size=configs['batch_size'], configs=configs)
         self.set_result_path()
@@ -193,6 +197,7 @@ class Trainer():
                     s_out = self.student([images, audios], training=True) if self.gen_cnt != 0 else None
                     t_out = self.teacher([images, audios], training=t_training)
                     task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, epo_domain_weight, T, self.non_improve_list, self.task_weight, exp=self.task_weight_exp, s_out=s_out)
+                    scaled_loss = self.optimizer.get_scaled_loss(task_loss)
                     #t_out, labels, task, alpha, beta, domain_weight, T, non_improve_list, task_weight, exp = None, s_out = None, mmd = False
                 task_metric, domain_metric = get_metric(t_out, labels, task, self.threshold) if self.gen_cnt == 0 else get_metric(s_out, labels, task, self.threshold)
                 if task_metric == 'nan':
@@ -204,10 +209,13 @@ class Trainer():
                 if domain_metric != None:
                     train_metric['domain'].append(float(domain_metric))
                 if self.gen_cnt == 0:
-                    gradient = tape.gradient(task_loss, self.teacher.trainable_variables)
+                    scaled_gradients = tape.gradient(scaled_loss, self.teacher.trainable_variables)
+                    gradient = self.optimizer.get_unscaled_gradients(scaled_gradients)
                     self.optimizer.apply_gradients(zip(gradient, self.teacher.trainable_variables))
                 else:
-                    gradient = tape.gradient(task_loss, self.student.trainable_variables)
+                    scaled_gradients = tape.gradient(scaled_loss, self.student.trainable_variables)
+                    gradient = self.optimizer.get_unscaled_gradients(scaled_gradients)
+                    # gradient = tape.gradient(task_loss, self.student.trainable_variables)
                     self.optimizer.apply_gradients(zip(gradient, self.student.trainable_variables))
 
             loss_list.append(float(loss))
