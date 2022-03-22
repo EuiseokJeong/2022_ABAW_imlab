@@ -4,7 +4,7 @@ configs = {
     'time_window':2,
     'data_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/data/2022',
 
-    'limit_gpu':1024*1,
+    'limit_gpu':1024*5,
     'gpu_num': 0,
     'eval_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_20_2_30_59',
 
@@ -17,9 +17,9 @@ configs = {
     'learning_rate': 0.0001,
 
     # model
-    'feature_extractor_layers':[1024,1024,1024,512,512,512],
+    'feature_extractor_layers':[1024,512],
     'classifier_layers': [256,128],
-    'domain_layers': [256, 128],
+    'domain_layers': [128, 64],
     'lstm_num': 512,
     'dropout_rate':0.5,
 
@@ -37,8 +37,8 @@ configs = {
      # domain adaptation
 
 
-    'domain_weight':0,
-    'adaptation_factor':0,
+    'domain_weight':1,
+    'adaptation_factor':1,
     'exp_domain_weight':False
 
 }

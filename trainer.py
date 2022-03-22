@@ -173,7 +173,7 @@ class Trainer():
         st_time = time.time()
 
         if self.domain_weight != 0:
-            epo_domain_weight = np.exp((epoch - self.epochs + 1) / (self.epochs / 4)) if self.exp_domain_weight else self.domain_weight
+            epo_domain_weight = (epoch + 1)/self.epochs if self.exp_domain_weight else self.domain_weight
         else:
             epo_domain_weight = self.domain_weight
 
