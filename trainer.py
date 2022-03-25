@@ -39,6 +39,19 @@ class Trainer():
         print(f"[INFO] result_path: {self.time_path}")
         os.mkdir(self.weight_path)
         os.mkdir(self.dict_path)
+<<<<<<< HEAD
+=======
+        # # save config in time_path
+        # shutil.copyfile(os.path.join(base_path, 'config.py'), os.path.join(self.time_path, 'saved_config.py'))
+        # # save source code in src_path
+        # py_list = [file for file in os.listdir(base_path) if file.endswith(".py")]
+        # for py in py_list:
+        #     shutil.copyfile(os.path.join(base_path, py), os.path.join(src_path, py))
+    # def refresh_path(self):
+    #     self.plot_path = os.path.join(self.plot_path, f"gen_{self.gen_cnt}")
+    #     for path in [self.plot_path]:
+    #         check_dir(path)
+>>>>>>> 13a1dd7f55e75618c82af3e3a17162f882ad0024
 
     def init_dict(self):
         self.train_loss_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
@@ -66,16 +79,36 @@ class Trainer():
         f.write(valid_result + '\n')
         f.close()
 
+<<<<<<< HEAD
     def save_weights(self):
         if self.gen_cnt == 0:
+=======
+    def save_weights(self, epoch):
+        if self.gen_cnt == 0:
+            # self.teacher.save_weights(os.path.join(self.weight_path, f'best_weight_gen_{self.gen_cnt}.h5'), save_format='h5')
+            # self.teacher.save(os.path.join(self.weight_path, f'epoch({epoch+1})model_gen_{self.gen_cnt}'))
+>>>>>>> 13a1dd7f55e75618c82af3e3a17162f882ad0024
             self.teacher.save(os.path.join(self.weight_path, 'best_teacher_model'))
             del self.teacher
             self.teacher = tf.keras.models.load_model(os.path.join(self.weight_path, 'best_teacher_model'))
         else:
+<<<<<<< HEAD
+=======
+            # self.student.save_weights(os.path.join(self.weight_path, f'best_weight_gen_{self.gen_cnt}.h5'),save_format='h5')
+>>>>>>> 13a1dd7f55e75618c82af3e3a17162f882ad0024
             self.student.save(os.path.join(self.weight_path, 'best_student_model'))
             del self.student
             self.student = tf.keras.models.load_model(os.path.join(self.weight_path, 'best_student_model'))
         print(f"            model saved in {self.weight_path}")
+<<<<<<< HEAD
+=======
+    # def load_model(self, gen_cnt):
+    #     model = get_model(self.configs)
+    #     model(np.zeros((1, 6, 1, 512)), np.zeros((1, 1000)))
+    #
+    #     model.load_weights(os.path.join(self.weight_path, f'best_weight_gen_{self.gen_cnt}.h5'))
+    #     return model
+>>>>>>> 13a1dd7f55e75618c82af3e3a17162f882ad0024
 
     def train_gen(self):
         best_metric = 0
@@ -98,10 +131,18 @@ class Trainer():
                         self.non_improve_list[key] += 1
             self.valid_loss_dict = update_dict(self.valid_loss_dict, valid_loss_dict)
             self.valid_metric_dict = update_dict(self.valid_metric_dict, valid_metric_dict)
+<<<<<<< HEAD
+=======
+            # pd.DataFrame(self.non_improve_list, index=[f'{epoch+1}']).to_csv(self.n_improve_csv, mode='a', header=False)
+>>>>>>> 13a1dd7f55e75618c82af3e3a17162f882ad0024
             self.train_loss_dict = update_dict(self.train_loss_dict, train_loss_dict)
             self.train_metric_dict = update_dict(self.train_metric_dict, train_metric_dict)
             self.save_result()
             mean_valid = valid_metric_dict['MTL'][0]
+<<<<<<< HEAD
+=======
+            # self.teacher.save_weights(os.path.join(self.weight_path, f"epoch({epoch+1})_MTL({mean_valid:.2f}).h5"))
+>>>>>>> 13a1dd7f55e75618c82af3e3a17162f882ad0024
             if mean_valid > best_metric:
                 self.save_weights(epoch)
                 early_stop = 0
@@ -170,6 +211,10 @@ class Trainer():
                 out = model([images, audios], training=False)
                 valid_loss[task].append(float(get_loss(out, labels, task, self.alpha, self.beta, self.domain_weight, 1, self.non_improve_list, self.task_weight, exp = self.task_weight_exp)))
                 task_metric, domain_metric = get_metric(out, labels, task, self.threshold, get_per_task=True)
+<<<<<<< HEAD
+=======
+
+>>>>>>> 13a1dd7f55e75618c82af3e3a17162f882ad0024
                 if task == 'MTL':
                     mtl_total, mtl_va, mtl_expr, mtl_au = task_metric
                     valid_metric['MTL'].append(mtl_total)
@@ -191,6 +236,14 @@ class Trainer():
         return valid_loss, valid_metric
     def train(self):
         print(self.weight_path, self.configs, '\n')
+<<<<<<< HEAD
+=======
+        # self.refresh_path()
+
+        # self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/keep/generation/2022_3_5_21_44_27(teacher_gen_0)/weight/epoch(28)model_gen_0')
+        # self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_23_0_10_14/weight/epoch(10)model_gen_1')
+
+>>>>>>> 13a1dd7f55e75618c82af3e3a17162f882ad0024
         self.teacher = get_model(self.configs)
         tf.keras.utils.plot_model(self.teacher, to_file=os.path.join(self.time_path, 'model.png'), show_shapes=True)
         self.train_gen()
