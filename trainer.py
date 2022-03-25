@@ -1,16 +1,13 @@
 import tensorflow as tf
 import numpy as np
-from utils import get_metric, get_loss, update_dict, check_dir, save_pickle, check_and_limit_gpu, check_weight
+from utils import get_metric, get_loss, update_dict, check_dir, save_pickle, check_and_limit_gpu
 from models import get_model
 import time
 from dataloader import dataloader
-from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 import os
-import shutil
 import warnings
 from silence_tensorflow import silence_tensorflow
-import pandas as pd
 
 class Trainer():
     def __init__(self, configs):
@@ -19,8 +16,6 @@ class Trainer():
         self.alpha = configs['alpha']
         self.epochs = configs['epochs']
         self.beta = configs['beta']
-        self.gen = configs['generation']
-        self.gamma = configs['gamma']
         self.T = configs['temperature']
         self.threshold = configs['au_threshold']
         self.task_weight_exp = configs['task_weight_exp']
@@ -33,34 +28,28 @@ class Trainer():
         self.set_result_path()
         check_and_limit_gpu(self.configs['limit_gpu'])
     def set_result_path(self):
-        base_path = os.getcwd()
-        result_path = os.path.join(base_path, 'NAS', '2022', 'result')
+        # base_path = os.getcwd()
+        result_path = os.path.join(self.configs['data_path'], 'result')
         check_dir(result_path)
         now = time.localtime()
         self.time_path = os.path.join(result_path,f"{now.tm_year}_{now.tm_mon}_{now.tm_mday}_{now.tm_hour}_{now.tm_min}_{now.tm_sec}")
         os.mkdir(self.time_path)
         self.weight_path = os.path.join(self.time_path, 'weight')
         assert not os.path.isdir(self.weight_path), f"weight path {self.weight_path} already exists!"
-        self.plot_path = os.path.join(self.time_path, 'plot')
-        src_path = os.path.join(self.time_path, 'src')
         self.dict_path = os.path.join(self.time_path, 'dict')
-        self.n_improve_csv = os.path.join(self.time_path, 'non_imporove.csv')
-        pd.DataFrame(columns=['VA','EXPR','AU','MTL']).to_csv(self.n_improve_csv)
         print(f"[INFO] result_path: {self.time_path}")
         os.mkdir(self.weight_path)
-        os.mkdir(src_path)
-        os.mkdir(self.plot_path)
         os.mkdir(self.dict_path)
-        # save config in time_path
-        shutil.copyfile(os.path.join(base_path, 'config.py'), os.path.join(self.time_path, 'saved_config.py'))
-        # save source code in src_path
-        py_list = [file for file in os.listdir(base_path) if file.endswith(".py")]
-        for py in py_list:
-            shutil.copyfile(os.path.join(base_path, py), os.path.join(src_path, py))
-    def refresh_path(self):
-        self.plot_path = os.path.join(self.plot_path, f"gen_{self.gen_cnt}")
-        for path in [self.plot_path]:
-            check_dir(path)
+        # # save config in time_path
+        # shutil.copyfile(os.path.join(base_path, 'config.py'), os.path.join(self.time_path, 'saved_config.py'))
+        # # save source code in src_path
+        # py_list = [file for file in os.listdir(base_path) if file.endswith(".py")]
+        # for py in py_list:
+        #     shutil.copyfile(os.path.join(base_path, py), os.path.join(src_path, py))
+    # def refresh_path(self):
+    #     self.plot_path = os.path.join(self.plot_path, f"gen_{self.gen_cnt}")
+    #     for path in [self.plot_path]:
+    #         check_dir(path)
 
     def init_dict(self):
         self.train_loss_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
@@ -83,23 +72,24 @@ class Trainer():
         f = open(txt_path, 'a')
         valid_result = f'{epoch + 1}'
         for key in valid_metric_dict.keys():
-            valid_result += f', {float(np.mean(valid_metric_dict[key]))}'
+            valid_result += f', {float(np.mean(valid_metric_dict[key])):.3f}'
         valid_result += '\n'
         f.write(valid_result + '\n')
         f.close()
 
-    def save_weights(self,epoch):
+    def save_weights(self, epoch):
         if self.gen_cnt == 0:
-            self.teacher.save_weights(os.path.join(self.weight_path, f'best_weight_gen_{self.gen_cnt}.h5'), save_format='h5')
-            self.teacher.save(os.path.join(self.weight_path, f'epoch({epoch+1})model_gen_{self.gen_cnt}'))
+            # self.teacher.save_weights(os.path.join(self.weight_path, f'best_weight_gen_{self.gen_cnt}.h5'), save_format='h5')
+            # self.teacher.save(os.path.join(self.weight_path, f'epoch({epoch+1})model_gen_{self.gen_cnt}'))
+            self.teacher.save(os.path.join(self.weight_path, 'best_teacher_model'))
             del self.teacher
-            self.teacher = tf.keras.models.load_model(os.path.join(self.weight_path, f'epoch({epoch+1})model_gen_{self.gen_cnt}'))
+            self.teacher = tf.keras.models.load_model(os.path.join(self.weight_path, 'best_teacher_model'))
         else:
-            self.student.save_weights(os.path.join(self.weight_path, f'best_weight_gen_{self.gen_cnt}.h5'),save_format='h5')
-            self.student.save(os.path.join(self.weight_path, f'epoch({epoch + 1})model_gen_{self.gen_cnt}'))
+            # self.student.save_weights(os.path.join(self.weight_path, f'best_weight_gen_{self.gen_cnt}.h5'),save_format='h5')
+            self.student.save(os.path.join(self.weight_path, 'best_student_model'))
             del self.student
-            self.student = tf.keras.models.load_model(os.path.join(self.weight_path, f'epoch({epoch + 1})model_gen_{self.gen_cnt}'))
-        print(f"            model saved in {os.path.join(self.weight_path, f'epoch({epoch+1})model_gen_{self.gen_cnt}')}")
+            self.student = tf.keras.models.load_model(os.path.join(self.weight_path, 'best_student_model'))
+        print(f"            model saved in {self.weight_path}")
     # def load_model(self, gen_cnt):
     #     model = get_model(self.configs)
     #     model(np.zeros((1, 6, 1, 512)), np.zeros((1, 1000)))
@@ -128,12 +118,12 @@ class Trainer():
                         self.non_improve_list[key] += 1
             self.valid_loss_dict = update_dict(self.valid_loss_dict, valid_loss_dict)
             self.valid_metric_dict = update_dict(self.valid_metric_dict, valid_metric_dict)
-            pd.DataFrame(self.non_improve_list, index=[f'{epoch+1}']).to_csv(self.n_improve_csv, mode='a', header=False)
+            # pd.DataFrame(self.non_improve_list, index=[f'{epoch+1}']).to_csv(self.n_improve_csv, mode='a', header=False)
             self.train_loss_dict = update_dict(self.train_loss_dict, train_loss_dict)
             self.train_metric_dict = update_dict(self.train_metric_dict, train_metric_dict)
             self.save_result()
             mean_valid = valid_metric_dict['MTL'][0]
-            self.teacher.save_weights(os.path.join(self.weight_path, f"epoch({epoch+1})_MTL({mean_valid:.2f}).h5"))
+            # self.teacher.save_weights(os.path.join(self.weight_path, f"epoch({epoch+1})_MTL({mean_valid:.2f}).h5"))
             if mean_valid > best_metric:
                 self.save_weights(epoch)
                 early_stop = 0
@@ -177,7 +167,7 @@ class Trainer():
                     gradient = tape.gradient(task_loss, self.student.trainable_variables)
                     self.optimizer.apply_gradients(zip(gradient, self.student.trainable_variables))
             loss_list.append(float(loss))
-            print('\r',f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || domain_weight: {epo_domain_weight:.2f} train_loss: {float(np.mean(loss_list)):.2f} "
+            print('\r',f"[INFO] ({self.gen_cnt+1}/2) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || domain_weight: {epo_domain_weight:.2f} train_loss: {float(np.mean(loss_list)):.2f} "
                        f"train_metric(VA/EXPR/AU/MTL/domain): {float(np.mean(train_metric['VA'])):.2f}/{float(np.mean(train_metric['EXPR'])):.2f}/{float(np.mean(train_metric['AU'])):.2f}/{float(np.mean(train_metric['MTL'])):.2f}/{float(np.mean(train_metric['domain'])):.2f} {time.time() - st_time:.2f}sec({(i + 1)/(time.time() - st_time):.2f}it/s)s", end = '')
         for key in train_loss.keys():
             train_loss[key] = [float(np.mean(train_loss[key]))]
@@ -224,19 +214,17 @@ class Trainer():
         return valid_loss, valid_metric
     def train(self):
         print(self.weight_path, self.configs, '\n')
-        self.refresh_path()
+        # self.refresh_path()
 
         # self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/keep/generation/2022_3_5_21_44_27(teacher_gen_0)/weight/epoch(28)model_gen_0')
         # self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_23_0_10_14/weight/epoch(10)model_gen_1')
 
         self.teacher = get_model(self.configs)
         tf.keras.utils.plot_model(self.teacher, to_file=os.path.join(self.time_path, 'model.png'), show_shapes=True)
-        # self.train_gen()
-        # self.gen_cnt = 1
-        for i in range(self.gen):
-            self.gen_cnt += 1
-            self.student = get_model(self.configs)
-            self.train_gen()
+        self.train_gen()
+        self.gen_cnt += 1
+        self.student = get_model(self.configs)
+        self.train_gen()
 if __name__=='__main__':
     from config import configs
     os.environ["CUDA_VISIBLE_DEVICES"] = f"{configs['gpu_num']}"

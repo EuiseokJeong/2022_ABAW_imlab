@@ -11,7 +11,6 @@ configs = {
     'epochs':20,
     'batch_size':256,
     'early_stop': 5,
-    'generation': 3,
     'learning_rate': 0.0001,
 
     # model
