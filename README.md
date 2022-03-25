@@ -56,3 +56,14 @@
 
 1. Change "eval_path" on [config.py](http://config.py/) to the absolute path of generated folder.
 2. Running [submit.py](http://submit.py/) creates a submission folder in that path and creates a submission file.
+
+## Citation
+@misc{https://doi.org/10.48550/arxiv.2203.13072,
+  doi = {10.48550/ARXIV.2203.13072},
+  url = {https://arxiv.org/abs/2203.13072},
+  author = {Jeong, Euiseok and Oh, Geesung and Lim, Sejoon},
+  title = {Multitask Emotion Recognition Model with Knowledge Distillation and Task Discriminator},
+  publisher = {arXiv},
+  year = {2022},
+  copyright = {Creative Commons Zero v1.0 Universal}
+}
