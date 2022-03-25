@@ -1,13 +1,10 @@
 import numpy as np
 import tensorflow as tf
 import math
-from skimage.io import imread_collection
 import os
 import time
 
-from scipy.io import wavfile
 import gzip
-import librosa
 import random
 import pickle
 class dataloader(tf.keras.utils.Sequence):
@@ -35,15 +32,10 @@ class dataloader(tf.keras.utils.Sequence):
     def get_data(self, data_list, task=None):
         vid_name_list = [x[0] for x in data_list]
         idx_list = [x[1] for x in data_list]
-        if task == 'MTL':
-            label_np = np.array([x[2] for x in data_list], dtype=object)
-        else:
-            label_np = np.array([x[2] for x in data_list])
+        label_np = np.array([x[2] for x in data_list], dtype=object) if task =='MTL' else np.array([x[2] for x in data_list])
         task = data_list[0][3]
-
         image_np = np.array([np.load(os.path.join(self.img_feature_path, vid_name, f"{idx}.npy")) for idx, vid_name in zip(idx_list, vid_name_list)])
         audio_np = np.array([np.load(os.path.join(self.audio_feature_path, vid_name.replace('_left', '').replace('_right', ''), f"{idx}.npy")) for idx, vid_name in zip(idx_list, vid_name_list)])
-
         return vid_name_list, idx_list, image_np, audio_np, label_np, task
 
     def get_batch_size(self):
@@ -66,10 +58,8 @@ class dataloader(tf.keras.utils.Sequence):
         if os.path.isfile(idx_path):
             print(f"[INFO] Load existing idx pickle file in {idx_path}")
             # load and uncompress.
-            st_time = time.time()
             with gzip.open(idx_path, 'rb') as f:
                 self.idx_dict = pickle.load(f)
-            # print(f"load pickle file: {time.time() - st_time}")
         else:
             if not os.path.isdir(idx_dir_path):
                 os.mkdir(idx_dir_path)
@@ -78,7 +68,6 @@ class dataloader(tf.keras.utils.Sequence):
                 self.idx_dict[task] = []
                 st_time = time.time()
                 if task == 'MTL':
-                    # /home/euiseokjeong/Desktop/IMLAB/ABAW/data/2022/annotation/MTL_Challenge/train_set.txt
                     mtl_txt = open(os.path.join(self.data_path, 'annotation', f'{self.task_dict[task]}', f'{self.type_dict[type].lower()}.txt'), 'r', encoding='UTF8').read().splitlines()[1:]
                     for i, data in enumerate(mtl_txt):
                         print('\r',f"[INFO] Making index list task: {task} ({i + 1}/{len(mtl_txt)} {time.time() - st_time:.1f}sec)",end='')
@@ -95,7 +84,6 @@ class dataloader(tf.keras.utils.Sequence):
                         label = splitted[1:]
                         if '-1' in label or '-5' in label:
                             continue
-
                         self.idx_dict[task].append((video_name, idx, self.convert_label(label, task), task))
                 else:
                     task_vid_list = os.listdir(os.path.join(self.data_path, 'annotation', self.task_dict[task], self.type_dict[type]))
@@ -138,11 +126,8 @@ class dataloader(tf.keras.utils.Sequence):
             ont_hot_np[int(expr)] = 1
             au = label[3:]
             return (np.array(va).astype(np.float32), ont_hot_np.astype(np.float32), np.array(au).astype(np.float32))
-
-
         else:
             raise ValueError(f"Task {task} is not valid!")
-        # return converted_label
 
     def get_dict(self):
         self.type_dict = {
@@ -157,24 +142,22 @@ class dataloader(tf.keras.utils.Sequence):
         }
 
     def shuffle(self):
-        # 딕셔너리  섞어주고 다시 각각 리스트 만들어주
         print(f"[INFO] Shuffling dataloader.")
         for key in self.idx_dict.keys():
             random.shuffle(self.idx_dict[key])
-if __name__ == '__main__':
-    from config import configs
-    # check_and_limit_gpu(configs['limit_gpu'])
-    data_path = configs['data_path']
-    stride = configs['stride']
-    time_win = configs['time_window']
-    train_loader = dataloader(type='train', video_seq_len = time_win, stride = stride, batch_size=128, configs=configs)
-    tot_time = time.time()
-    st_time = time.time()
-
-    print(train_loader.max_iter)
-    for i , data in enumerate(train_loader):
-        vid_names, idxes, images, audios, labels, task = data[0]
-        print(i, time.time() - st_time)
-        st_time = time.time()
-    print(f"total: {time.time()-tot_time}")
-    train_loader.shuffle()
+# if __name__ == '__main__':
+#     from config import configs
+#     data_path = configs['data_path']
+#     stride = configs['stride']
+#     time_win = configs['time_window']
+#     train_loader = dataloader(type='train', video_seq_len = time_win, stride = stride, batch_size=128, configs=configs)
+#     tot_time = time.time()
+#     st_time = time.time()
+#
+#     print(train_loader.max_iter)
+#     for i , data in enumerate(train_loader):
+#         vid_names, idxes, images, audios, labels, task = data[0]
+#         print(i, time.time() - st_time)
+#         st_time = time.time()
+#     print(f"total: {time.time()-tot_time}")
+#     train_loader.shuffle()

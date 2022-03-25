@@ -153,8 +153,8 @@ class Trainer():
         T = 1 if self.gen_cnt == 0 else self.T
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
-            # if i == 5:
-            #     break
+            if i == 5:
+                break
             loss = 0
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
@@ -176,7 +176,6 @@ class Trainer():
                 else:
                     gradient = tape.gradient(task_loss, self.student.trainable_variables)
                     self.optimizer.apply_gradients(zip(gradient, self.student.trainable_variables))
-
             loss_list.append(float(loss))
             print('\r',f"[INFO] Gen_({self.gen_cnt}/{self.gen}) ({epoch+1}/{self.epochs})({i + 1:0>5}/{iter:0>5}) Training gen_{self.gen_cnt} model || domain_weight: {epo_domain_weight:.2f} train_loss: {float(np.mean(loss_list)):.2f} "
                        f"train_metric(VA/EXPR/AU/MTL/domain): {float(np.mean(train_metric['VA'])):.2f}/{float(np.mean(train_metric['EXPR'])):.2f}/{float(np.mean(train_metric['AU'])):.2f}/{float(np.mean(train_metric['MTL'])):.2f}/{float(np.mean(train_metric['domain'])):.2f} {time.time() - st_time:.2f}sec({(i + 1)/(time.time() - st_time):.2f}it/s)s", end = '')
@@ -184,7 +183,6 @@ class Trainer():
             train_loss[key] = [float(np.mean(train_loss[key]))]
         for key in train_metric.keys():
             train_metric[key] = [float(np.mean(train_metric[key]))]
-
         return train_loss, train_metric
 
 
@@ -197,8 +195,8 @@ class Trainer():
                         'MTL/AU': []}
         valid_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         for i, data in enumerate(dataloader):
-            # if i == 5:
-            #     break
+            if i == 5:
+                break
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
                 out = model([images, audios], training=False)
