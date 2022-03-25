@@ -103,7 +103,7 @@ class Trainer():
             self.save_result()
             mean_valid = valid_metric_dict['MTL'][0]
             if mean_valid > best_metric:
-                self.save_weights(epoch)
+                self.save_weights()
                 early_stop = 0
                 best_metric=mean_valid
             else:
