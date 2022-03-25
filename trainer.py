@@ -14,8 +14,6 @@ import pandas as pd
 
 class Trainer():
     def __init__(self, configs):
-        # policy = mixed_precision.Policy('mixed_float16')
-        # mixed_precision.set_policy(policy)
         self.configs = configs
         self.gen_cnt = 0
         self.alpha = configs['alpha']
@@ -29,9 +27,7 @@ class Trainer():
         self.task_weight = configs['task_weight_flag']
         self.domain_weight = configs['domain_weight']
         self.linear_domain_weight = configs['linear_domain_weight']
-        # self.t_train_loss, self.s_train_loss, self.t_valid_loss, self.s_valid_loss, self.t_valid_metric, self.s_valid_metric = [],[],[],[],[],[]
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=configs['learning_rate'])
-        # self.optimizer = mixed_precision.LossScaleOptimizer(optimizer, loss_scale='dynamic')
         self.train_dataloader = dataloader(type='train', batch_size=configs['batch_size'], configs=configs)
         self.valid_dataloader = dataloader(type='valid', batch_size=configs['batch_size'], configs=configs)
         self.set_result_path()
@@ -51,8 +47,6 @@ class Trainer():
         self.n_improve_csv = os.path.join(self.time_path, 'non_imporove.csv')
         pd.DataFrame(columns=['VA','EXPR','AU','MTL']).to_csv(self.n_improve_csv)
         print(f"[INFO] result_path: {self.time_path}")
-
-
         os.mkdir(self.weight_path)
         os.mkdir(src_path)
         os.mkdir(self.plot_path)
@@ -64,9 +58,7 @@ class Trainer():
         for py in py_list:
             shutil.copyfile(os.path.join(base_path, py), os.path.join(src_path, py))
     def refresh_path(self):
-        # self.dict_path = os.path.join(self.dict_path, f"gen_{self.gen_cnt}")
         self.plot_path = os.path.join(self.plot_path, f"gen_{self.gen_cnt}")
-        # self.weight_path = os.path.join(self.weight_path, f"gen_{self.gen_cnt}")
         for path in [self.plot_path]:
             check_dir(path)
 
@@ -78,7 +70,6 @@ class Trainer():
         self.non_improve_list = {'VA': 0, 'EXPR': 0, 'AU': 0, 'MTL':0}
         self.task_best_valid = {'VA': 0, 'EXPR': 0, 'AU': 0, 'MTL': 0}
     def save_result(self):
-        # loss, metric 딕셔너리 저장
         gen_dict = {
                 'train_loss':self.train_loss_dict,
                 'train_metric':self.train_metric_dict,
@@ -86,16 +77,14 @@ class Trainer():
                 'valid_metric':self.valid_metric_dict
         }
         save_pickle(gen_dict, os.path.join(self.dict_path, f'{self.gen_cnt}_result.pickle'))
+
     def write_result(self, valid_metric_dict, epoch):
         txt_path = os.path.join(self.time_path, 'train_valid.txt')
         f = open(txt_path, 'a')
-        # if len(f.readlines) == 0:
-        #     f.write('epoch, VA, EXPR, AU, MTL\n')
         valid_result = f'{epoch + 1}'
         for key in valid_metric_dict.keys():
             valid_result += f', {float(np.mean(valid_metric_dict[key]))}'
         valid_result += '\n'
-
         f.write(valid_result + '\n')
         f.close()
 
@@ -111,21 +100,19 @@ class Trainer():
             del self.student
             self.student = tf.keras.models.load_model(os.path.join(self.weight_path, f'epoch({epoch + 1})model_gen_{self.gen_cnt}'))
         print(f"            model saved in {os.path.join(self.weight_path, f'epoch({epoch+1})model_gen_{self.gen_cnt}')}")
-    def load_model(self, gen_cnt):
-        model = get_model(self.configs)
-        model(np.zeros((1, 6, 1, 512)), np.zeros((1, 1000)))
-
-        model.load_weights(os.path.join(self.weight_path, f'best_weight_gen_{self.gen_cnt}.h5'))
-        return model
+    # def load_model(self, gen_cnt):
+    #     model = get_model(self.configs)
+    #     model(np.zeros((1, 6, 1, 512)), np.zeros((1, 1000)))
+    #
+    #     model.load_weights(os.path.join(self.weight_path, f'best_weight_gen_{self.gen_cnt}.h5'))
+    #     return model
 
     def train_gen(self):
         best_metric = 0
         self.init_dict()
         early_stop = 0
         self.valid_dataloader.shuffle()
-
         for epoch in range(self.epochs):
-
             self.train_dataloader.shuffle()
             train_loss_dict, train_metric_dict = self.train_epoch(self.train_dataloader, epoch)
             valid_loss_dict, valid_metric_dict = self.valid(self.teacher, self.valid_dataloader) if self.gen_cnt == 0 \
@@ -133,25 +120,20 @@ class Trainer():
             self.write_result(valid_metric_dict, epoch)
             if epoch > 0:
                 for key in valid_metric_dict:
-                    if key in  ['domain','MTL/VA','MTL/EXPR','MTL/AU', 'MTL']:
+                    if key in ['domain','MTL/VA','MTL/EXPR','MTL/AU', 'MTL']:
                         continue
                     if valid_metric_dict[key][0] > max(self.valid_metric_dict[key]):
                         self.non_improve_list[key] = 0
                     else:
                         self.non_improve_list[key] += 1
-
             self.valid_loss_dict = update_dict(self.valid_loss_dict, valid_loss_dict)
             self.valid_metric_dict = update_dict(self.valid_metric_dict, valid_metric_dict)
-
             pd.DataFrame(self.non_improve_list, index=[f'{epoch+1}']).to_csv(self.n_improve_csv, mode='a', header=False)
-
             self.train_loss_dict = update_dict(self.train_loss_dict, train_loss_dict)
             self.train_metric_dict = update_dict(self.train_metric_dict, train_metric_dict)
             self.save_result()
             mean_valid = valid_metric_dict['MTL'][0]
-
             self.teacher.save_weights(os.path.join(self.weight_path, f"epoch({epoch+1})_MTL({mean_valid:.2f}).h5"))
-
             if mean_valid > best_metric:
                 self.save_weights(epoch)
                 early_stop = 0
@@ -160,13 +142,6 @@ class Trainer():
                 early_stop += 1
             if early_stop == self.configs['early_stop']:
                 break
-        self.plot_result()
-    def plot_result(self):
-        # self.train_loss_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': []}
-        # self.train_metric_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': []}
-        # self.valid_metric_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': []}
-        # self.valid_loss_dict = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': []}
-        return
 
     def train_epoch(self, dataloader, epoch):
         loss_list = []
@@ -175,7 +150,6 @@ class Trainer():
         iter = dataloader.max_iter
         st_time = time.time()
         epo_domain_weight = (epoch + 1) / self.epochs if self.linear_domain_weight else self.domain_weight
-
         T = 1 if self.gen_cnt == 0 else self.T
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
@@ -188,25 +162,18 @@ class Trainer():
                     s_out = self.student([images, audios], training=True) if self.gen_cnt != 0 else None
                     t_out = self.teacher([images, audios], training=t_training)
                     task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, epo_domain_weight, T, self.non_improve_list, self.task_weight, exp=self.task_weight_exp, s_out=s_out)
-                    # scaled_loss = self.optimizer.get_scaled_loss(task_loss)
-                    #t_out, labels, task, alpha, beta, domain_weight, T, non_improve_list, task_weight, exp = None, s_out = None, mmd = False
                 task_metric, domain_metric = get_metric(t_out, labels, task, self.threshold) if self.gen_cnt == 0 else get_metric(s_out, labels, task, self.threshold)
                 if task_metric == 'nan':
                     continue
                 loss += task_loss
-
                 train_loss[task].append(float(task_loss))
                 train_metric[task].append(float(task_metric))
                 if domain_metric != None:
                     train_metric['domain'].append(float(domain_metric))
                 if self.gen_cnt == 0:
-                    # scaled_gradients = tape.gradient(scaled_loss, self.teacher.trainable_variables)
-                    # gradient = self.optimizer.get_unscaled_gradients(scaled_gradients)
                     gradient = tape.gradient(task_loss, self.teacher.trainable_variables)
                     self.optimizer.apply_gradients(zip(gradient, self.teacher.trainable_variables))
                 else:
-                    # scaled_gradients = tape.gradient(scaled_loss, self.student.trainable_variables)
-                    # gradient = self.optimizer.get_unscaled_gradients(scaled_gradients)
                     gradient = tape.gradient(task_loss, self.student.trainable_variables)
                     self.optimizer.apply_gradients(zip(gradient, self.student.trainable_variables))
 
@@ -246,7 +213,6 @@ class Trainer():
                     valid_metric['MTL/AU'].append(mtl_au)
                 else:
                     valid_metric[task].append(task_metric)
-
                 if task_metric == 'nan':
                     continue
                 if domain_metric != None:
@@ -263,18 +229,18 @@ class Trainer():
         self.refresh_path()
 
         # self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/keep/generation/2022_3_5_21_44_27(teacher_gen_0)/weight/epoch(28)model_gen_0')
+        # self.teacher = tf.keras.models.load_model('/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_23_0_10_14/weight/epoch(10)model_gen_1')
 
         self.teacher = get_model(self.configs)
         tf.keras.utils.plot_model(self.teacher, to_file=os.path.join(self.time_path, 'model.png'), show_shapes=True)
-        self.train_gen()
-
+        # self.train_gen()
+        # self.gen_cnt = 1
         for i in range(self.gen):
             self.gen_cnt += 1
             self.student = get_model(self.configs)
             self.train_gen()
 if __name__=='__main__':
     from config import configs
-
     os.environ["CUDA_VISIBLE_DEVICES"] = f"{configs['gpu_num']}"
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     silence_tensorflow()
