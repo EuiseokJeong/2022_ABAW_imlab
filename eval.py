@@ -1,4 +1,3 @@
-import cv2
 import tensorflow as tf
 import numpy as np
 from utils import get_metric, check_dir, check_and_limit_gpu
