@@ -12,10 +12,9 @@ Source code of [Multitask Emotion Recognition Model with Knowledge Distillation 
     name: imlab_ABAW
     channels:
       - conda-forge
-    
-    .
-    .
-    .
+        .
+        .
+        .
     # specify your anaconda path with env name
     # ex)/home/{user_name}/anaconda3/envs/imlab_ABAW
     prefix: /home/{your_user_name}/anaconda3/envs/imlab_ABAW
@@ -49,13 +48,13 @@ Source code of [Multitask Emotion Recognition Model with Knowledge Distillation 
 
 ## Train
 
-1. When you run [trainer.py](http://trainer.py/), it is stored in a directory called result in the data_path as the date and time of the file execution.
+1. When you run trainer.py, it is stored in a directory called result in the data_path as the date and time of the file execution.
     - If you want a pre-trained file,  you can download [here](https://www.dropbox.com/s/net5ho4xbmf8a8i/pretrained.zip?dl=0)
 
 ## Evaluate
 
-1. Change "eval_path" on [config.py](http://config.py/) to the absolute path of generated folder.
-2. Running [submit.py](http://submit.py/) creates a submission folder in that path and creates a submission file.
+1. Change "eval_path" on config.py to the absolute path of generated folder.
+2. Running submit.py creates a submission folder in that path and creates a submission file.
 
 ## Citation
 @misc{https://doi.org/10.48550/arxiv.2203.13072,
