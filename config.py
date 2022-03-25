@@ -2,10 +2,12 @@ configs = {
     # setting
     'stride':10,
     'time_window':2,
-    'data_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/data/2022',
+    # type your data_path
+    'data_path': '',
     'limit_gpu':1024*4.5,
     'gpu_num': 0,
-    'eval_path': '/home/euiseokjeong/Desktop/2022_ABAW_imlab/data/result/DC(0>1)',
+    # type your result_path need to evaluate
+    'eval_path': '',
 
     # train
     'epochs':20,

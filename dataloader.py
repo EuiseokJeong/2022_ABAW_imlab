@@ -145,19 +145,3 @@ class dataloader(tf.keras.utils.Sequence):
         print(f"[INFO] Shuffling dataloader.")
         for key in self.idx_dict.keys():
             random.shuffle(self.idx_dict[key])
-# if __name__ == '__main__':
-#     from config import configs
-#     data_path = configs['data_path']
-#     stride = configs['stride']
-#     time_win = configs['time_window']
-#     train_loader = dataloader(type='train', video_seq_len = time_win, stride = stride, batch_size=128, configs=configs)
-#     tot_time = time.time()
-#     st_time = time.time()
-#
-#     print(train_loader.max_iter)
-#     for i , data in enumerate(train_loader):
-#         vid_names, idxes, images, audios, labels, task = data[0]
-#         print(i, time.time() - st_time)
-#         st_time = time.time()
-#     print(f"total: {time.time()-tot_time}")
-#     train_loader.shuffle()

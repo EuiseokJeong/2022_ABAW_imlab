@@ -102,22 +102,7 @@ def get_metric(out, labels, task, au_threshold, get_per_task=False):
     domain_label = get_domain_label(task, labels.shape[0])
     domain_metric = tf.keras.metrics.CategoricalAccuracy()(t_domain, domain_label)
     return task_metric, domain_metric
-<<<<<<< HEAD
 
-=======
-# class custom_loss():
-#     def __init__(self, alpha, beta, gamma, mmd):
-#         self.ce_loss = tf.keras.losses.CategoricalCrossentropy()
-#         self.bce_loss = tf.keras.losses.BinaryCrossentropy()
-#     def get_loss(self, t_out, labels, task, s_out=None):
-#
-#     def va_loss(self, t_out, labels, task, s_out=None):
-#         s_f, s_va, s_expr, s_au = s_out
-#         if s_out is not None:
-#
-#
-# t_out, labels, task, self.alpha, self.beta, self.gamma, s_out
->>>>>>> 13a1dd7f55e75618c82af3e3a17162f882ad0024
 def check_weight(src_model, target_model):
     src_weights = src_model.get_weights()
     target_weights = target_model.get_weights()
@@ -147,14 +132,6 @@ def get_loss(t_out, labels, task, alpha, beta, domain_weight, T, non_improve_lis
             return total_loss
 
         elif task == 'VA':
-<<<<<<< HEAD
-=======
-            tmp = alpha * task_weight_dict['VA'] * loss_ccc(s_va, labels)
-            tmp2 = task_weight_dict['VA']*loss_ccc(s_va, t_va)
-            tmp3 = beta * (task_weight_dict['EXPR'] * cce_loss(t_expr, s_expr))
-            tmp4 = task_weight_dict['AU']*bce_loss(t_au, s_au)
-            tmp5 = tmp3+tmp4
->>>>>>> 13a1dd7f55e75618c82af3e3a17162f882ad0024
             task_loss = alpha * task_weight_dict['VA'] * loss_ccc(s_va, labels) + task_weight_dict['VA']*loss_ccc(s_va, t_va) + \
                    beta * (task_weight_dict['EXPR'] * cce_loss(t_expr, s_expr) + task_weight_dict['AU']*bce_loss(t_au, s_au))
         elif task == 'EXPR':
