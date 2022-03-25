@@ -1,10 +1,10 @@
 # Multitask Emotion Recognition Model with Knowledge Distillation and Task Discriminator
+Source code of [Multitask Emotion Recognition Model with Knowledge Distillation and Task Discriminator](https://arxiv.org/abs/2203.13072)
 
 ### Requirements
 
 1. requirements
     
-    - 
     - Anaconda must be installed and GPU-enabled.
     - conda_requirements.yml should be fixed to fit your anaconda path.
     
