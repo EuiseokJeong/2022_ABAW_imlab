@@ -44,7 +44,7 @@ Source code of [Multitask Emotion Recognition Model with Knowledge Distillation 
     	-result(will be generated automatically)
     ```
     
-2. Change ‘data_path’ in [config.py](http://config.py) to your data_path data downloaded. 
+2. Change ‘data_path’ in config.py to your data_path data downloaded. 
 
 ## Train
 
