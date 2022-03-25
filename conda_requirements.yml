@@ -230,4 +230,4 @@ dependencies:
     - tifffile==2021.11.2
 # specify your anaconda path with env name
 # ex)/home/{user_name}/anaconda3/envs/imlab_ABAW
-prefix: /home/euiseokjeong/anaconda3/envs/imlab_ABAW
+prefix: /home/{user_name}/anaconda3/envs/imlab_ABAW
