@@ -8,6 +8,7 @@ import os
 import warnings
 from silence_tensorflow import silence_tensorflow
 
+
 class Trainer():
     def __init__(self, configs):
         self.configs = configs
