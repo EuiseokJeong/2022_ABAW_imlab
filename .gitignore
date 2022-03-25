@@ -2,16 +2,14 @@
 *.png
 *.avi
 *.mp4
-*.txt
 *.wav
 *.pickle
 *.npy
 *.hdf5
-config.py
 /CAPNet
+/ImaginarySoundscape
 /tmp
 /result
-ImaginarySoundscape/
 data/2022/tmp
 data/
 NAS/

@@ -5,7 +5,7 @@ configs = {
     'data_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/data/2022',
     'limit_gpu':1024*4.5,
     'gpu_num': 0,
-    'eval_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/keep/generation/2022_3_5_21_44_27(teacher_gen_0)',
+    'eval_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/submission/without_DC_test',
 
     # train
     'epochs':20,
