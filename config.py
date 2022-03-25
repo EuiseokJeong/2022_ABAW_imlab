@@ -1,24 +1,39 @@
 configs = {
+    # setting
     'stride':10,
     'time_window':2,
     'data_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/data/2022',
-    'limit_gpu':1024*3,
+    'limit_gpu':1024*4.5,
+    'gpu_num': 0,
+    'eval_path': '/home/euiseokjeong/Desktop/2022_ABAW_imlab/data/result/DC(0>1)',
+
+    # train
     'epochs':20,
     'batch_size':256,
+    'early_stop': 5,
+    'learning_rate': 0.0001,
+
+    # model
     'feature_extractor_layers':[1024,512],
     'classifier_layers': [256,128],
+    'domain_layers': [64,32],
     'lstm_num': 512,
-    'dropout_rate':0.2,
-    'temperature':1.5,
-    'early_stop':5,
-    'generation':1,
-    'alpha':1.5,
-    'beta':1,
+    'dropout_rate':0.5,
+
+    # hyper parametre
+    'temperature':2.5,
+    'alpha':10,
+    'beta':0.9,
     'gamma':1,
     'au_threshold':0.5,
-    'learning_rate':0.0001,
-    'gpu_num':0,
-    'task_weight_exp':'as',
-    'task_weight_flag':False,
-    'eval_path':'/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_18_15_32_5'
+
+    # task_weight
+    'task_weight_exp':0.5,
+    'task_weight_flag':True,
+
+     # domain adaptation
+    'domain_weight':1,
+    'adaptation_factor':1,
+    'linear_domain_weight':True
+
 }
