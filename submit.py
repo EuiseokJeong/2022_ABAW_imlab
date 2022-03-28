@@ -41,7 +41,7 @@ class evaluator():
                 audio_name = image_name.replace('_left', '').replace('_right', '')
                 image_num = int(image_num.replace('.jpg', ''))
                 if not os.path.isdir(os.path.join(audio_path, audio_name)) or not os.path.isdir(os.path.join(image_path, image_name)):
-                    tmp_result = ",".join([test_data.split(',')[0].replace('\n', '') + '.jpg'] + ['0' for x in range(22)]) + '\n'
+                    tmp_result = ",".join([test_data.split(',')[0].replace('\n', '') + '.jpg'] + ['0' for x in range(15)]) + '\n'
                     result_list.append(tmp_result)
                     continue
                 image_feature_path = os.path.join(image_path, image_name, f"{image_num}.npy")
