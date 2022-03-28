@@ -49,7 +49,7 @@ Source code of [Multitask Emotion Recognition Model with Knowledge Distillation 
 ## Train
 
 1. When you run trainer.py, it is stored in a directory called result in the data_path as the date and time of the file execution.
-    - If you want a pre-trained file,  you can download [here](https://www.dropbox.com/s/net5ho4xbmf8a8i/pretrained.zip?dl=0)
+    - If you want a pre-trained file,  you can download [here](https://www.dropbox.com/s/sb5trorb50kwacq/pre_trained.zip?dl=0)
 
 ## Evaluate
 
