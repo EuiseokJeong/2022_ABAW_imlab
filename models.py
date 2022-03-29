@@ -12,6 +12,7 @@ def get_model(configs):
     dropout_rate = configs['dropout_rate']
     domain_layers = configs['domain_layers']
     adaptation_factor = configs['adaptation_factor']
+    stream = configs['stream']
 
     class dense_module(tf.keras.Model):
         def __init__(self, layer_num, activation, name, drop_rate=0):
@@ -44,9 +45,24 @@ def get_model(configs):
     audio_input = Input(shape=(1000), name='audio_in')
 
     # feature extractor
-    img_feature = Reshape((6, 512))(img_input)
-    img_feature = LSTM(lstm_num, activation='relu', dtype='float32', name=f'img_lstm_{lstm_num}')(img_feature)
-    h = Concatenate()([img_feature, audio_input])
+    # if stream == 'image' or stream == 'both':
+    #     img_feature = Reshape((6, 512))(img_input)
+    #     img_feature = LSTM(lstm_num, activation='relu', dtype='float32', name=f'img_lstm_{lstm_num}')(img_feature)
+    if stream == 'both':
+        img_feature = Reshape((6, 512))(img_input)
+        img_feature = LSTM(lstm_num, activation='relu', dtype='float32', name=f'img_lstm_{lstm_num}')(img_feature)
+        h = Concatenate()([img_feature, audio_input])
+    elif stream == 'audio':
+        h = audio_input
+    elif stream == 'image':
+        img_feature = Reshape((6, 512))(img_input)
+        img_feature = LSTM(lstm_num, activation='relu', dtype='float32', name=f'img_lstm_{lstm_num}')(img_feature)
+        h = img_feature
+    else:
+        raise ValueError(f"stream {stream} is not valid!")
+
+
+
 
     for i in FE_layers:
         h = dense_module(i, swish, drop_rate=dropout_rate, name=f"FE_{i}")(h)
@@ -78,8 +94,14 @@ def get_model(configs):
     au_h = Dense(12)(au_h)
     au_out = Activation('sigmoid', dtype='float32')(au_h)
 
-
-    input_list = [img_input, audio_input]
+    if stream == 'image':
+        input_list = [img_input]
+    elif stream == 'audio':
+        input_list = [audio_input]
+    elif stream == 'both':
+        input_list = [img_input, audio_input]
+    else:
+        raise ValueError(f"stream {stream} is not valid!")
     output_list = [domain_out,va_out, expr_h, au_out]
 
     model = tf.keras.Model(

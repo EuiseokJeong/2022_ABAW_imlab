@@ -25,6 +25,7 @@ class Trainer():
         self.train_dataloader = dataloader(type='train', batch_size=configs['batch_size'], configs=configs)
         self.valid_dataloader = dataloader(type='valid', batch_size=configs['batch_size'], configs=configs)
         self.set_result_path()
+        self.stream = configs['stream']
         check_and_limit_gpu(self.configs['limit_gpu'])
     def set_result_path(self):
         result_path = os.path.join(self.configs['data_path'], 'result')
@@ -121,12 +122,25 @@ class Trainer():
         T = 1 if self.gen_cnt == 0 else self.T
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
+
+            if i == 5:
+                break
+
+
             loss = 0
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
+                if stream == 'image':
+                    input_list = [images]
+                elif stream == 'audio':
+                    input_list = [audios]
+                elif stream == 'both':
+                    input_list = [images, audios]
+                else:
+                    raise ValueError(f"stream {stream} is not valid!")
                 with tf.GradientTape() as tape:
-                    s_out = self.student([images, audios], training=True) if self.gen_cnt != 0 else None
-                    t_out = self.teacher([images, audios], training=t_training)
+                    s_out = self.student(input_list, training=True) if self.gen_cnt != 0 else None
+                    t_out = self.teacher(input_list, training=t_training)
                     task_loss = get_loss(t_out, labels, task, self.alpha, self.beta, epo_domain_weight, T, self.non_improve_list, self.task_weight, exp=self.task_weight_exp, s_out=s_out)
                 task_metric, domain_metric = get_metric(t_out, labels, task, self.threshold) if self.gen_cnt == 0 else get_metric(s_out, labels, task, self.threshold)
                 if task_metric == 'nan':
@@ -161,6 +175,12 @@ class Trainer():
                         'MTL/AU': []}
         valid_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         for i, data in enumerate(dataloader):
+
+
+            if i == 5:
+                break
+
+
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
                 out = model([images, audios], training=False)

@@ -3,7 +3,7 @@ configs = {
     'stride':10,
     'time_window':2,
     # type your data_path
-    'data_path': '',
+    'data_path': '/media/euiseokjeong/HDD/ABAW_data/2022',
     'limit_gpu':1024*4.5,
     'gpu_num': 0,
     # type your result_path need to evaluate
@@ -36,6 +36,8 @@ configs = {
      # domain adaptation
     'domain_weight':1,
     'adaptation_factor':1,
-    'linear_domain_weight':True
+    'linear_domain_weight':True,
+
+    'stream':'image' # 'image', 'audio', 'both'
 
 }
