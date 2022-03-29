@@ -168,6 +168,7 @@ class Trainer():
 
     def valid(self, model, dataloader):
         print()
+        print()
         iter = dataloader.max_iter
         dataloader.shuffle()
         st_time = time.time()
