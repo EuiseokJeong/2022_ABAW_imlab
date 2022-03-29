@@ -131,6 +131,7 @@ class Trainer():
                 task_metric, domain_metric = get_metric(t_out, labels, task, self.threshold) if self.gen_cnt == 0 else get_metric(s_out, labels, task, self.threshold)
                 if task_metric == 'nan':
                     continue
+
                 loss += task_loss
                 train_loss[task].append(float(task_loss))
                 train_metric[task].append(float(task_metric))
