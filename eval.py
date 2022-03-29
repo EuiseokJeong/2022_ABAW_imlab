@@ -12,6 +12,7 @@ class tester():
     def __init__(self,configs):
         self.configs = configs
         self.result_path = configs['eval_path']
+        self.stream = configs['stream']
         print(self.result_path, configs)
     def valid(self):
         valid_dataloader = dataloader(type='valid', batch_size=self.configs['batch_size'], configs=self.configs)
@@ -29,7 +30,16 @@ class tester():
             for i, data in enumerate(valid_dataloader):
                 for task_data in data:
                     vid_names, idxes, images, audios, labels, task = task_data
-                    out = test_model((images, audios), training=False)
+                    if self.stream == 'image':
+                        input_list = [images]
+                    elif self.stream == 'audio':
+                        input_list = [audios]
+                    elif self.stream == 'both':
+                        input_list = [images, audios]
+                    else:
+                        raise ValueError(f"stream {self.stream} is not valid!")
+                    out = test_model(input_list, training=False)
+                    # out = test_model((images, audios), training=False)
                     task_metric,_ = get_metric(out, labels, task, threshold, get_per_task=True)
                     if task == 'MTL':
                         mtl_total, mtl_va, mtl_expr, mtl_au = task_metric

@@ -3,11 +3,11 @@ configs = {
     'stride':10,
     'time_window':2,
     # type your data_path
-    'data_path': '/home/euiseokjeong/Desktop/ABAW_data/2022',
-    'limit_gpu':1024*3,
-    'gpu_num': 0,
+    'data_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/data/2022',
+    'limit_gpu':1024*4,
+    'gpu_num': 1,
     # type your result_path need to evaluate
-    'eval_path': '',
+    'eval_path': '/home/euiseokjeong/Desktop/IMLAB/2022_ABAW_imlab/NAS/2022/result/2022_3_29_18_24_8',
 
     # train
     'epochs':20,
