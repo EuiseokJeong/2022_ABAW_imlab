@@ -123,8 +123,8 @@ class Trainer():
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
 
-            if i == 5:
-                break
+            # if i == 5:
+            #     break
 
 
             loss = 0
@@ -177,8 +177,8 @@ class Trainer():
         for i, data in enumerate(dataloader):
 
 
-            if i == 5:
-                break
+            # if i == 5:
+            #     break
 
 
             for task_data in data:
