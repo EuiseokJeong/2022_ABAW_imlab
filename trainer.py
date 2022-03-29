@@ -130,14 +130,14 @@ class Trainer():
             loss = 0
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
-                if stream == 'image':
+                if self.stream == 'image':
                     input_list = [images]
-                elif stream == 'audio':
+                elif self.stream == 'audio':
                     input_list = [audios]
-                elif stream == 'both':
+                elif self.stream == 'both':
                     input_list = [images, audios]
                 else:
-                    raise ValueError(f"stream {stream} is not valid!")
+                    raise ValueError(f"stream {self.stream} is not valid!")
                 with tf.GradientTape() as tape:
                     s_out = self.student(input_list, training=True) if self.gen_cnt != 0 else None
                     t_out = self.teacher(input_list, training=t_training)
@@ -183,7 +183,15 @@ class Trainer():
 
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
-                out = model([images, audios], training=False)
+                if self.stream == 'image':
+                    input_list = [images]
+                elif self.stream == 'audio':
+                    input_list = [audios]
+                elif self.stream == 'both':
+                    input_list = [images, audios]
+                else:
+                    raise ValueError(f"stream {self.stream} is not valid!")
+                out = model(input_list, training=False)
                 valid_loss[task].append(float(get_loss(out, labels, task, self.alpha, self.beta, self.domain_weight, 1, self.non_improve_list, self.task_weight, exp = self.task_weight_exp)))
                 task_metric, domain_metric = get_metric(out, labels, task, self.threshold, get_per_task=True)
                 if task == 'MTL':
