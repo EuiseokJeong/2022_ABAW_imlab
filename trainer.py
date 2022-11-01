@@ -11,6 +11,7 @@ from silence_tensorflow import silence_tensorflow
 class Trainer():
     def __init__(self, configs):
         self.configs = configs
+
         self.gen_cnt = 0
         self.alpha = configs['alpha']
         self.epochs = configs['epochs']
@@ -25,6 +26,7 @@ class Trainer():
         self.train_dataloader = dataloader(type='train', batch_size=configs['batch_size'], configs=configs)
         self.valid_dataloader = dataloader(type='valid', batch_size=configs['batch_size'], configs=configs)
         self.set_result_path()
+        save_pickle(configs, os.path.join(self.time_path, "saved_config.pickle"))
         check_and_limit_gpu(self.configs['limit_gpu'])
     def set_result_path(self):
         result_path = os.path.join(self.configs['data_path'], 'result')
@@ -66,21 +68,23 @@ class Trainer():
         f.close()
 
 
-    def save_weights(self):
+    def save_weights(self, epoch):
+        weight_path = os.path.join(self.weight_path, f'gen_{self.gen_cnt}_{epoch}_model')
         if self.gen_cnt == 0:
-            self.teacher.save(os.path.join(self.weight_path, 'best_teacher_model'))
+            self.teacher.save(weight_path)
             del self.teacher
-            self.teacher = tf.keras.models.load_model(os.path.join(self.weight_path, 'best_teacher_model'))
+            self.teacher = tf.keras.models.load_model(weight_path)
         else:
-            self.student.save(os.path.join(self.weight_path, 'best_student_model'))
+            self.student.save(weight_path)
             del self.student
-            self.student = tf.keras.models.load_model(os.path.join(self.weight_path, 'best_student_model'))
-        print(f"            model saved in {self.weight_path}")
+            self.student = tf.keras.models.load_model(weight_path)
+        print(f"            model saved in {weight_path}")
 
     def train_gen(self):
         best_metric = 0
         self.init_dict()
         early_stop = 0
+        # self.best_ep = 0
         self.valid_dataloader.shuffle()
         for epoch in range(self.epochs):
             self.train_dataloader.shuffle()
@@ -102,15 +106,16 @@ class Trainer():
             self.train_metric_dict = update_dict(self.train_metric_dict, train_metric_dict)
             self.save_result()
             mean_valid = valid_metric_dict['MTL'][0]
+            self.save_weights(epoch)
             if mean_valid > best_metric:
-                self.save_weights()
+                self.best_ep = epoch
                 early_stop = 0
                 best_metric=mean_valid
             else:
                 early_stop += 1
             if early_stop == self.configs['early_stop']:
                 break
-
+    # 이 함수에서 validation pred, true 리스트로 내보내주고 train_gen에서 gen에 대한 dictionary로 만들어서 저장하기
     def train_epoch(self, dataloader, epoch):
         loss_list = []
         train_metric = {'VA': [], 'EXPR': [], 'AU': [], 'MTL': [], 'domain':[]}
@@ -122,6 +127,12 @@ class Trainer():
         t_training = True if self.gen_cnt == 0 else False
         for i, data in enumerate(dataloader):
             loss = 0
+
+            #
+            # if i == 3:
+            #     break
+
+
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
                 with tf.GradientTape() as tape:
@@ -160,6 +171,13 @@ class Trainer():
                         'MTL/AU': []}
         valid_loss = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
         for i, data in enumerate(dataloader):
+            # 여기서 task 나눠서 예측 값이랑 라벨 값 붙여넣어야할 듯.
+
+
+            # if i == 3:
+            #     break
+
+
             for task_data in data:
                 vid_names, idxes, images, audios, labels, task = task_data
                 out = model([images, audios], training=False)
@@ -184,18 +202,85 @@ class Trainer():
             valid_metric[key] = [float(np.mean(valid_metric[key]))]
         print()
         return valid_loss, valid_metric
+
+    def valid_best_model(self, best_ep, dataloader):
+        dataloader.shuffle()
+        iter = dataloader.max_iter
+        print(f"[INFO] validate gen_{self.gen_cnt} model of best epoch {best_ep}")
+        model = tf.keras.models.load_model(os.path.join(self.weight_path, f'gen_{self.gen_cnt}_{best_ep}_model'))
+        pred_list = {'VA': [], 'EXPR': [], 'AU': [], 'MTL':[]}
+        for i, data in enumerate(dataloader):
+            # 여기서 task 나눠서 예측 값이랑 라벨 값 붙여넣어야할 듯.
+            print('\r', f"      ({i + 1:0>5}/{iter:0>5}) Validation gen_{self.gen_cnt} model({os.path.join(self.weight_path, f'gen_{self.gen_cnt}_{best_ep}_model')})", end = '')
+
+
+
+            # if i == 3:
+            #     break
+
+
+
+
+            for task_data in data:
+                vid_names, idxes, images, audios, labels, task = task_data
+                raw_out = model([images, audios], training=False)
+                if task == 'VA':
+                    out = np.array(raw_out[1])
+                elif task == 'EXPR':
+                    out = np.array(raw_out[2])
+                elif task == 'AU':
+                    out = np.array(raw_out[3])
+                elif task == 'MTL':
+                    tmp1 = np.array(raw_out[1])
+                    # tmp2 = np.argmax(np.array(raw_out[2]), axis = 1)
+                    tmp2 = np.array(raw_out[2])
+                    tmp3 = np.array(raw_out[3])
+                    out = np.concatenate([tmp1, tmp2, tmp3], axis = 1)
+                else:
+                    raise ValueError(f"Task {task} is not valid")
+                for i, (vid_name, idx, label) in enumerate(zip(vid_names, idxes, labels)):
+                    tmp_out = out[i,:]
+                    pred_list[task].append((vid_name, idx, label, tmp_out))
+                    # elif task == 'EXPR':
+                    #     pred_list[task].append((vid_name, idx, label, tmp_out[2]))
+                    # elif task == 'AU':
+                    #     pred_list[task].append((vid_name, idx, label, tmp_out[3]))
+                    # elif task == 'MTL':
+                    #     pred_list[task].append((vid_name, idx, label, tmp_out[1:]))
+                    # else:
+                    #     raise ValueError(f"Task {task} is not valid")
+        save_pickle(pred_list, os.path.join(self.time_path, f"gen_{self.gen_cnt}_val_result.pickle"))
+
+        # for key in valid_loss.keys():
+        #     valid_loss[key] = [float(np.mean(valid_loss[key]))]
+        # for key in valid_metric.keys():
+        #     valid_metric[key] = [float(np.mean(valid_metric[key]))]
+        # print()
+        # return valid_loss, valid_metric
+
     def train(self):
-        print(self.weight_path, self.configs, '\n')
+        print(self.weight_path, '\n', self.configs, '\n')
+
+        print("\n",f"======================= Train teacher =======================")
         self.teacher = get_model(self.configs)
         tf.keras.utils.plot_model(self.teacher, to_file=os.path.join(self.time_path, 'model.png'), show_shapes=True)
         self.train_gen()
+        self.valid_best_model(self.best_ep, self.valid_dataloader)
+
+
         self.gen_cnt += 1
+        print("\n\n", f"======================= Train gen {self.gen_cnt} student model =======================")
         self.student = get_model(self.configs)
         self.train_gen()
+        self.valid_best_model(self.best_ep, self.valid_dataloader)
 if __name__=='__main__':
     from config import configs
     os.environ["CUDA_VISIBLE_DEVICES"] = f"{configs['gpu_num']}"
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     silence_tensorflow()
     warnings.filterwarnings(action='ignore')
-    Trainer(configs).train()
+
+    for tmp_a in [1,5,10,15,20]:
+        configs['alpha'] = tmp_a
+
+        Trainer(configs).train()

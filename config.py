@@ -3,8 +3,8 @@ configs = {
     'stride':10,
     'time_window':2,
     # type your data_path
-    'data_path': '',
-    'limit_gpu':1024*4.5,
+    'data_path': '/home/euiseokjeong/Desktop/IMLAB/journal/ABAW/2022_ABAW_imlab/data',
+    'limit_gpu':1024*2.5,
     'gpu_num': 0,
     # type your result_path need to evaluate
     'eval_path': '',
@@ -34,7 +34,7 @@ configs = {
     'task_weight_flag':True,
 
      # domain adaptation
-    'domain_weight':1,
+    'domain_weight':0,
     'adaptation_factor':1,
     'linear_domain_weight':True
 

@@ -17,11 +17,32 @@ class dataloader(tf.keras.utils.Sequence):
         self.video_seq_len = video_seq_len
         self.data_path = configs['data_path']
         self.get_idx(type, task_list)
+        # self.check_idx()
         self.get_batch_size()
+
+
 
 
     def __len__(self):
         return math.ceil(self.max_len / self.batch_size)
+
+    def check_idx(self):
+        for task in self.idx_dict:
+            tmp_idx = []
+            before_cnt = len(self.idx_dict[task])
+            for x in self.idx_dict[task]:
+                vid_name = x[0]
+                idx = x[1]
+                if not os.path.isfile(os.path.join(self.img_feature_path, vid_name, f"{idx}.npy")):
+                    continue
+                if not os.path.isfile(os.path.join(self.audio_feature_path, vid_name.replace('_left', '').replace('_right', ''), f"{idx}.npy")):
+                    continue
+                tmp_idx.append(x)
+            self.idx_dict[task] = tmp_idx
+            print(f"[INFO] idx list check result of task {task}: {before_cnt} --> {len(self.idx_dict[task])}({len(self.idx_dict[task])/before_cnt*100:.2f}%)")
+
+
+
 
     def __getitem__(self, idx):
         batch_mtl_list = self.mtl_list[idx * self.mtl_batch_size:(idx + 1) * self.mtl_batch_size]
@@ -105,6 +126,7 @@ class dataloader(tf.keras.utils.Sequence):
                 print()
             with gzip.open(idx_path, 'wb') as f:
                 pickle.dump(self.idx_dict, f)
+        self.check_idx()
         self.mtl_list = self.idx_dict['MTL']
         self.va_list = self.idx_dict['VA']
         self.expr_list = self.idx_dict['EXPR']
